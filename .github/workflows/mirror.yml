@@ -1,0 +1,31 @@
+name: Mirror to Public Repo
+
+on:
+  push:
+    branches: [ development ]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to mirror
+        uses: 'actions/checkout@v4'
+        with:
+          repository: 'Maximus-Technologies-Uganda/training-hamza-mirror'
+          # This secret must be created by your mentor in the repo settings
+          # It needs write access to the mirror repo.
+          token: ${{ secrets.MIRROR_PAT }} 
+          # Pushes the 'development' branch from this repo 
+          # to the 'development' branch in the mirror repo.
+          ref: 'development'
+          path: 'training-hamza-mirror'
+
+      - name: Push to mirror
+        shell: bash
+        working-directory: 'training-hamza-mirror'
+        run: |
+          git push origin development
