@@ -15,5 +15,5 @@ jobs:
       - name: Push to mirror
         shell: bash
         run: |
-          git remote add mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Maximus-Technologies-Uganda/training-hamza-mirror.git
+          git remote add mirror https://x-access-token:${{ secrets.MIRROR_PAT }}@github.com/Maximus-Technologies-Uganda/training-hamza-mirror.git
           git push mirror development
