@@ -1,0 +1,26 @@
+{
+  "name": "training-hamza",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Maximus-Technologies-Uganda/training-hamza.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Maximus-Technologies-Uganda/training-hamza/issues"
+  },
+  "homepage": "https://github.com/Maximus-Technologies-Uganda/training-hamza#readme",
+  "devDependencies": {
+    "vite": "^7.2.0",
+    "vitest": "^4.0.10"
+  }
+}
