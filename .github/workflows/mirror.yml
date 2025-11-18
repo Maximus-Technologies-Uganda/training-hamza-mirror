@@ -13,19 +13,7 @@ jobs:
           fetch-depth: 0
 
       - name: Push to mirror
-        uses: 'actions/checkout@v4'
-        with:
-          repository: 'Maximus-Technologies-Uganda/training-hamza-mirror'
-          # This secret must be created by your mentor in the repo settings
-          # It needs write access to the mirror repo.
-          token: ${{ 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}} 
-          # Pushes the 'development' branch from this repo 
-          # to the 'development' branch in the mirror repo.
-          ref: 'development'
-          path: 'training-hamza-mirror'
-
-      - name: Push to mirror
         shell: bash
-        working-directory: 'training-hamza-mirror'
         run: |
-          git push origin development
+          git remote add mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Maximus-Technologies-Uganda/training-hamza-mirror.git
+          git push mirror development
