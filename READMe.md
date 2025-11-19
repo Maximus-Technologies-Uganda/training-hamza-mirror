@@ -1,6 +1,6 @@
 # Training Hamza
 
-A simple CLI greeting application to demonstrate testing and development workflows.
+CLI applications to demonstrate testing, TDD, and development workflows.
 
 ## Installation
 
@@ -10,7 +10,100 @@ npm install
 
 ## Usage
 
-### Basic Greeting
+### Stopwatch CLI
+
+A stopwatch with start, lap, and stop functionality.
+
+#### Starting the Stopwatch
+
+```bash
+node src/stopwatch/cli.js start
+```
+
+Output: `Stopwatch started`
+
+#### Recording Lap Times
+
+While the stopwatch is running, record lap times:
+
+```bash
+node src/stopwatch/cli.js lap
+```
+
+Output: `Lap: 00:05.432`
+
+#### Stopping the Stopwatch
+
+```bash
+node src/stopwatch/cli.js stop
+```
+
+Output: `Stopped: 00:10.876`
+
+#### Example Session
+
+```bash
+# Start the stopwatch
+node src/stopwatch/cli.js start
+# Stopwatch started
+
+# Record first lap
+node src/stopwatch/cli.js lap
+# Lap: 00:03.245
+
+# Record second lap
+node src/stopwatch/cli.js lap
+# Lap: 00:07.891
+
+# Stop the stopwatch
+node src/stopwatch/cli.js stop
+# Stopped: 00:12.456
+```
+
+#### Stopwatch Error Cases
+
+**Starting twice without stopping:**
+```bash
+node src/stopwatch/cli.js start
+node src/stopwatch/cli.js start
+# Error: Stopwatch already running
+```
+
+**Lap before starting:**
+```bash
+node src/stopwatch/cli.js lap
+# Error: Stopwatch not started
+```
+
+**Stop before starting:**
+```bash
+node src/stopwatch/cli.js stop
+# Error: Stopwatch not started
+```
+
+#### Using the Stopwatch Module
+
+Import and use the stopwatch in your code:
+
+```javascript
+import { createStopwatch, formatTime } from './src/stopwatch/index.js';
+
+const sw = createStopwatch();
+sw.start();
+
+setTimeout(() => {
+  console.log(`Lap: ${formatTime(sw.lap())}`);
+}, 1000);
+
+setTimeout(() => {
+  sw.stop();
+  console.log(`Total: ${formatTime(sw.elapsedMs())}`);
+}, 2000);
+```
+
+### Hello CLI (Greeting)
+
+#### Basic Greeting
 
 Greet someone by name:
 
@@ -96,12 +189,19 @@ This project uses:
 ```
 training-hamza/
 ├── src/
-│   └── hello/
-│       ├── index.js      # Core formatGreeting function
-│       └── cli.js        # CLI wrapper
+│   ├── hello/
+│   │   ├── index.js      # Core formatGreeting function
+│   │   └── cli.js        # CLI wrapper
+│   └── stopwatch/
+│       ├── index.js      # Core stopwatch logic (TDD)
+│       └── cli.js        # Stopwatch CLI wrapper
 ├── tests/
 │   ├── sanity.test.js    # Basic sanity check
-│   └── hello.test.js     # Tests for formatGreeting
+│   ├── hello.test.js     # Tests for formatGreeting
+│   └── stopwatch.test.js # Tests for stopwatch (TDD)
+├── docs/
+│   ├── review-packet-chapter1.md   # Hello CLI review
+│   └── review-packet-chapter3.md   # Stopwatch review
 ├── package.json
 └── README.md
 ```
