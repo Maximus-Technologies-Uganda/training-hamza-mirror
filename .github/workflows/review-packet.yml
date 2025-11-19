@@ -36,7 +36,11 @@ jobs:
 
       - name: Copy documentation
         run: |
-          cp -r docs/* review-packet/ 2>/dev/null || true
+          if [ -d docs ]; then
+            cp -r docs/* review-packet/
+          else
+            echo "Warning: docs directory does not exist. Documentation will not be included in the review packet."
+          fi
           cp README.md review-packet/ 2>/dev/null || true
 
       - name: Generate test report
