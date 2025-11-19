@@ -77,14 +77,14 @@ jobs:
           
           ## Contents
           
-          - \`docs/\` - All documentation and review packets
-          - \`src/\` - Source code for this feature
-          - \`tests/\` - Test files
-          - \`test-results.txt\` - Test execution output
-          - \`git-log.txt\` - Recent git history
-          - \`branch-info.txt\` - Branch and commit details
-          - \`changed-files.txt\` - Files modified in this branch
-          - \`README.md\` - Project documentation
+          - `docs/` - All documentation and review packets
+          - `src/` - Source code for this feature
+          - `tests/` - Test files
+          - `test-results.txt` - Test execution output
+          - `git-log.txt` - Recent git history
+          - `branch-info.txt` - Branch and commit details
+          - `changed-files.txt` - Files modified in this branch
+          - `README.md` - Project documentation
           
           ## Quick Links
           
