@@ -50,7 +50,6 @@ describe('Stopwatch - Valid sequences', () => {
     const sw = createStopwatch();
     sw.start();
     sw.stop();
-    const firstElapsed = sw.elapsedMs();
     
     sw.start();
     sw.stop();
