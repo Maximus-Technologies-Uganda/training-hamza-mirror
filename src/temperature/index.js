@@ -6,7 +6,7 @@
  */
 function validateTemperature(temp, label) {
   if (typeof temp !== 'number' || isNaN(temp) || !isFinite(temp)) {
-    throw new Error('Temperature must be a number');
+    throw new Error(`${label} temperature must be a number`);
   }
 }
 
