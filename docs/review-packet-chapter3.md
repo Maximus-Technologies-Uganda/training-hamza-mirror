@@ -297,17 +297,17 @@ Separating logic from I/O provides:
 
 ## Next Steps
 
-- [ ✅] Run final tests locally
-- [ ✅] Push branch to GitHub
-- [✅ ] Open Pull Request
-- [✅ ] Add PR link to this document
-- [ ✅] Wait for CI checks to complete
-- [ ✅] Add CI run link to this document
-- [✅ ] Capture RED → GREEN screenshots
-- [ ✅] Capture CLI usage screenshot
-- [✅ ] Request code review
-- [ ✅] Address review feedback
-- [ ✅] Merge PR when approved and CI is green
+- [x] Run final tests locally
+- [x] Push branch to GitHub
+- [x] Open Pull Request
+- [x] Add PR link to this document
+- [x] Wait for CI checks to complete
+- [x] Add CI run link to this document
+- [x] Capture RED → GREEN screenshots
+- [x] Capture CLI usage screenshot
+- [x] Request code review
+- [x] Address review feedback
+- [x] Merge PR when approved and CI is green
 
 ## Definition of Done Checklist
 
