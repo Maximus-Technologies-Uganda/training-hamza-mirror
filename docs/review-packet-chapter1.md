@@ -16,7 +16,7 @@ Implementation of a simple CLI greeting application with testing and CI/CD.
 
 ### Time Spent
 - **Planning & Setup**: 10 - Understanding requirements, setting up structure
-- **Implementation**: 10- Writing formatGreeting, CLI wrapper, and tests
+- **Implementation**: 10 - Writing formatGreeting, CLI wrapper, and tests
 - **Testing & Debugging**: 20 - Running tests, fixing issues
 - **Documentation**: 10 - Writing README and review packet
 - **Total Time**: 50
