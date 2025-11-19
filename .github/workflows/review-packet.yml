@@ -56,7 +56,7 @@ jobs:
 
       - name: List changed files
         run: |
-          git diff --name-only origin/development...HEAD > review-packet/changed-files.txt 2>/dev/null || git diff --name-only HEAD~5...HEAD > review-packet/changed-files.txt
+          git diff --name-only $(git merge-base origin/development HEAD)...HEAD > review-packet/changed-files.txt 2>/dev/null || git diff --name-only $(git rev-list --max-parents=0 HEAD)...HEAD > review-packet/changed-files.txt
 
       - name: Copy source files
         run: |
