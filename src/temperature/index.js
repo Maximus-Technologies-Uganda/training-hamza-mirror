@@ -82,5 +82,4 @@ export function convert(value, from, to) {
     return fToC(value);
   }
   
-  throw new Error(`Unsupported conversion: ${from} to ${to}`);
 }
