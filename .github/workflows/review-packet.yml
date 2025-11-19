@@ -61,10 +61,17 @@ jobs:
       - name: Copy source files
         run: |
           mkdir -p review-packet/src
-          cp -r src/* review-packet/src/ 2>/dev/null || true
+          if [ -d src ]; then
+            cp -r src/* review-packet/src/
+          else
+            echo "WARNING: src directory does not exist. No source files copied." >&2
+          fi
           mkdir -p review-packet/tests
-          cp -r tests/* review-packet/tests/ 2>/dev/null || true
-
+          if [ -d tests ]; then
+            cp -r tests/* review-packet/tests/
+          else
+            echo "WARNING: tests directory does not exist. No test files copied." >&2
+          fi
       - name: Create summary
         run: |
           cat << EOF > review-packet/SUMMARY.md
