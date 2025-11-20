@@ -93,9 +93,8 @@ jobs:
           - CI Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EOF
 
-      - name: Upload review packet artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Review Packet
+        uses: actions/upload-artifact@v3
         with:
-          name: review-packet-${{ github.ref_name }}-${{ github.run_number }}
+          name: review-packet-feat-hello-cli-1
           path: review-packet/
-          retention-days: 90
