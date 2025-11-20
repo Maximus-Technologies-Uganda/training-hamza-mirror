@@ -1,0 +1,101 @@
+name: Generate Review Packet
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - 'chore/**'
+    paths:
+      - 'docs/review-packet-*.md'
+
+jobs:
+  generate-review-packet:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Create review packet directory
+        run: mkdir -p review-packet
+
+      - name: Copy documentation
+        run: |
+          cp -r docs/* review-packet/ 2>/dev/null || true
+          cp README.md review-packet/ 2>/dev/null || true
+
+      - name: Generate test report
+        run: |
+          npm test -- --reporter=verbose > review-packet/test-results.txt 2>&1 || true
+
+      - name: Capture git log
+        run: |
+          git log --oneline --graph --all -20 > review-packet/git-log.txt
+
+      - name: Capture branch info
+        run: |
+          echo "Branch: $(git branch --show-current)" > review-packet/branch-info.txt
+          echo "Commit: $(git rev-parse HEAD)" >> review-packet/branch-info.txt
+          echo "Author: $(git log -1 --pretty=format:'%an <%ae>')" >> review-packet/branch-info.txt
+          echo "Date: $(git log -1 --pretty=format:'%ad')" >> review-packet/branch-info.txt
+
+      - name: List changed files
+        run: |
+          git diff --name-only origin/development...HEAD > review-packet/changed-files.txt 2>/dev/null || git diff --name-only HEAD~5...HEAD > review-packet/changed-files.txt
+
+      - name: Copy source files
+        run: |
+          mkdir -p review-packet/src
+          cp -r src/* review-packet/src/ 2>/dev/null || true
+          mkdir -p review-packet/tests
+          cp -r tests/* review-packet/tests/ 2>/dev/null || true
+
+      - name: Create summary
+        run: |
+          cat << EOF > review-packet/SUMMARY.md
+          # Review Packet Summary
+          
+          **Branch**: $(git branch --show-current)
+          **Commit**: $(git rev-parse --short HEAD)
+          **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          ## Contents
+          
+          - \`docs/\` - All documentation and review packets
+          - \`src/\` - Source code for this feature
+          - \`tests/\` - Test files
+          - \`test-results.txt\` - Test execution output
+          - \`git-log.txt\` - Recent git history
+          - \`branch-info.txt\` - Branch and commit details
+          - \`changed-files.txt\` - Files modified in this branch
+          - \`README.md\` - Project documentation
+          
+          ## Quick Links
+          
+          - Repository: ${{ github.server_url }}/${{ github.repository }}
+          - Branch: ${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}
+          - CI Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+      - name: Upload review packet artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-packet-${{ github.ref_name }}-${{ github.run_number }}
+          path: review-packet/
+          retention-days: 90
