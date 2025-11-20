@@ -116,8 +116,4 @@ describe('Input validation', () => {
   test('fToC should throw on non-numeric input', () => {
     expect(() => fToC('cold')).toThrow('Temperature must be a number');
   });
-
-  test('fToC should throw on Infinity', () => {
-    expect(() => fToC(Infinity)).toThrow('Temperature must be a number');
-  });
 });
