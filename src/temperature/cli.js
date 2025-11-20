@@ -9,15 +9,17 @@ function parseArgs(args) {
     value: null
   };
 
-  for (let i = 0; i < args.length; i++) {
+  for (let i = 0; i < args.length;) {
     if (args[i] === '--from' && args[i + 1]) {
       parsed.from = args[i + 1];
-      i++;
+      i += 2;
     } else if (args[i] === '--to' && args[i + 1]) {
       parsed.to = args[i + 1];
-      i++;
+      i += 2;
     } else if (args[i] === '--value' && args[i + 1]) {
       parsed.value = args[i + 1];
+      i += 2;
+    } else {
       i++;
     }
   }

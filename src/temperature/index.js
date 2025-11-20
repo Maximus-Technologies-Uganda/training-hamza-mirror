@@ -1,4 +1,19 @@
 /**
+<<<<<<< HEAD
+=======
+ * Validates that the temperature input is a valid number
+ * @param {any} temp - Temperature value to validate
+ * @param {string} label - Label for error message (e.g., "Celsius", "Fahrenheit")
+ * @throws {Error} If temperature is not a valid number
+ */
+function validateTemperature(temp, label) {
+  if (typeof temp !== 'number' || isNaN(temp) || !isFinite(temp)) {
+    throw new Error(`${label} temperature must be a number`);
+  }
+}
+
+/**
+>>>>>>> e4a76857885b4876461d23e508d639917bdedbb1
  * Converts Celsius to Fahrenheit
  * Formula: F = (C × 9/5) + 32
  * @param {number} celsius - Temperature in Celsius
@@ -73,5 +88,4 @@ export function convert(value, from, to) {
     return fToC(value);
   }
   
-  throw new Error(`Unsupported conversion: ${from} to ${to}`);
 }
