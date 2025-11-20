@@ -9,7 +9,7 @@ Implementation of a temperature converter CLI with comprehensive input validatio
 - **Status**: Merged
 
 ## CI Evidence
-- **CI Run Link**: (https://github.com/Maximus-Technologies-Uganda/training-hamza/actions/runs/19533907098)
+- **CI Run Link**: [CI Run](https://github.com/Maximus-Technologies-Uganda/training-hamza/actions/runs/19533907098)
 - **Status**: ✅ Green
 
 ## Journal
