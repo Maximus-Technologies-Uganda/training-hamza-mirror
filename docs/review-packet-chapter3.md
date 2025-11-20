@@ -5,22 +5,22 @@ Implementation of a stopwatch CLI using Test-Driven Development (TDD), supportin
 
 ## PR Information
 - **Branch**: `feat/stopwatch`
-- **PR Link**: [Add PR link here after creating PR]
+- **PR Link**: (https://github.com/Maximus-Technologies-Uganda/training-hamza/pull/7)
 - **Status**: [Add status - Draft/Open/Merged]
 
 ## CI Evidence
-- **CI Run Link**: [Add GitHub Actions run link here]
+- **CI Run Link**: [\[Add GitHub Actions run link here\]](https://github.com/Maximus-Technologies-Uganda/training-hamza/actions/runs/19515034263)
 - **Status**: ⏳ Pending / ✅ Green / ❌ Failed
 
 ## Journal
 
 ### Time Spent
-- **Planning & TDD Setup**: [Add time] - Understanding requirements, designing test cases
+- **Planning & TDD Setup**: 10 minutes - Understanding requirements, designing test cases
 - **Writing Failing Tests (RED)**: 10 minutes - Writing tests before implementation
 - **Implementation (GREEN)**: 20 minutes - Writing code to pass tests
 - **CLI Wrapper**: 10 minutes - Creating user-facing CLI
 - **Documentation**: 10 minutes - README and review packet
-- **Total Time**: 50 minutes
+- **Total Time**: 60 minutes
 
 ### TDD Process: Red → Green → Refactor
 
