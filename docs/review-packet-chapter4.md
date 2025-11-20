@@ -5,12 +5,12 @@ Implementation of a temperature converter CLI with comprehensive input validatio
 
 ## PR Information
 - **Branch**: `feat/temp-cli`
-- **PR Link**: [Add PR link here after creating PR]
-- **Status**: [Add status - Draft/Open/Merged]
+- **PR Link**: (https://github.com/Maximus-Technologies-Uganda/training-hamza/pull/8)
+- **Status**: Merged
 
 ## CI Evidence
-- **CI Run Link**: [Add GitHub Actions run link here]
-- **Status**: ⏳ Pending / ✅ Green / ❌ Failed
+- **CI Run Link**: [CI Run](https://github.com/Maximus-Technologies-Uganda/training-hamza/actions/runs/19533907098)
+- **Status**: ✅ Green
 
 ## Journal
 
@@ -20,7 +20,7 @@ Implementation of a temperature converter CLI with comprehensive input validatio
 - **Implementation**: 20 minutes - Core functions with validation
 - **CLI Wrapper**: 15 minutes - User-friendly error handling
 - **Documentation**: 15 minutes - README and review packet
-- **Total Time**: ~85 minutes
+- **Total Time**: 85 minutes
 
 ### Validation Rules Chosen
 
@@ -432,10 +432,10 @@ User Input
 ## Screenshots
 
 ### Screenshot 1: Successful Conversion
-[Add screenshot showing successful C→F and F→C conversions]
+![Temperature Success Cases](temp-success.png)
 
 ### Screenshot 2: Error Handling
-[Add screenshot showing various error cases: invalid unit, same unit, missing args, invalid value]
+![Temperature Error Handling](temp-errors.png)
 
 **To capture screenshots:**
 ```bash
