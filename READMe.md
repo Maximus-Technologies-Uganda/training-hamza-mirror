@@ -2,6 +2,39 @@
 
 CLI applications to demonstrate testing, TDD, and development workflows.
 
+## Chapter 1 Summary
+
+This project contains **three CLI applications** built incrementally to practice:
+- **Test-Driven Development (TDD)**
+- **Input validation and error handling**
+- **GitHub Actions CI/CD**
+- **Code review workflows**
+
+### CLIs Overview
+
+| CLI | Purpose | Key Features | Tests |
+|-----|---------|--------------|-------|
+| **Hello CLI** | Greeting generator | Name parameter, shout mode | 6 tests |
+| **Stopwatch CLI** | Time tracking | Start, lap, stop commands | 13 tests |
+| **Temperature CLI** | Unit converter | C↔F conversion, validation | 24 tests |
+
+**Total: 44 comprehensive tests** (+ 1 sanity check)
+
+### Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Run all tests
+npm test
+
+# Try each CLI
+node src/hello/cli.js --name Alice
+node src/stopwatch/cli.js start
+node src/temperature/cli.js --from C --to F --value 100
+```
+
 ## Installation
 
 ```bash
