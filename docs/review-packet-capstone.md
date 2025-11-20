@@ -24,7 +24,7 @@ This capstone represents the completion of Chapter 1, consolidating three CLI ap
 - **44 tests** passing (100% pass rate)
 - **4 PRs** merged successfully
 - **4 CI runs** all green ✅
-- **6 review packets** completed with evidence
+- **4 review packets** completed with evidence
 
 ## Project Structure
 
