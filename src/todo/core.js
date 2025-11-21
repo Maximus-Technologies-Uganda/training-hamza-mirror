@@ -68,7 +68,7 @@ export function addTask(text, options = {}) {
     throw new Error('Due date must be a Date object');
   }
 
-  if (isDuplicate(text, dueDate)) {
+  if (isDuplicate(text.trim(), dueDate)) {
     throw new Error('Duplicate task');
   }
 
