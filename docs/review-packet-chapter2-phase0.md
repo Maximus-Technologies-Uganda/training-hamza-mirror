@@ -110,7 +110,7 @@ Test Files  4 passed (4)
    - Line 30: Updated usage text to show correct invocation path
 
 2. **READMe.md** (1 line changed)
-   - Line 261: Updated usage example to match CLI output
+   - Line 288: Updated usage example to match CLI output
 
 3. **tests/hello.test.js** (41 lines added)
    - Added `execSync` import from `child_process`
