@@ -285,7 +285,7 @@ node src/hello/cli.js --shout
 Output:
 ```
 Error: --name argument is required
-Usage: node cli.js --name <name> [--shout]
+Usage: node src/hello/cli.js --name <name> [--shout]
 ```
 Exit code: `1`
 
