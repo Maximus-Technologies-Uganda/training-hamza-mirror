@@ -88,7 +88,7 @@ console.error('Usage: node cli.js --name <name> [--shout]');
 console.error('Usage: node src/hello/cli.js --name <name> [--shout]');
 ```
 
-**File:** `READMe.md` (line 260-262)
+**File:** `READMe.md` (line 288)
 
 **Before:**
 ```
@@ -364,35 +364,14 @@ Test Files  4 passed (4)
 **Files Changed: 6**
 
 1. **src/hello/cli.js** (1 line changed)
-   - Updated usage text to show correct invocation path
+   - Line 30: Updated usage text to show correct invocation path
 
-2. **tests/hello.test.js** (41 lines added)
-   - Added `execSync` import for process spawning
-   - Added `Hello CLI Integration` test suite with 3 tests
+2. **READMe.md** (1 line changed)
+   - Line 288: Updated usage example to match CLI output
 
-3. **src/temperature/index.js** (major refactor)
-   - Extracted `assertValidTemperature()` helper with explicit Infinity policy
-   - Refactored `cToF()` and `fToC()` to use shared validation
-   - Added comprehensive JSDoc with policy rationale
-
-4. **src/temperature/cli.js** (major refactor)
-   - Converted from `main()` + `process.exit()` to `run(argv)` pattern
-   - Returns exit codes instead of calling `process.exit()` in logic
-   - Made CLI testable without spawning processes
-   - Added module boundary check for direct execution
-
-5. **tests/temperature.test.js** (major expansion)
-   - Converted conversion tests to table-driven style (2 tables with 6 cases each)
-   - Added dedicated `convert()` function test block (7 tests)
-   - Added `assertValidTemperature()` test suite with Infinity policy tests
-   - Expanded validation tests for both `cToF` and `fToC`
-   - **Test count: 24 → 40 tests (+16 tests)**
-
-6. **READMe.md** (Stopwatch section rewritten)
-   - Added prominent warning about single-process limitation
-   - Removed misleading multi-invocation examples
-   - Added `demo.js` example showing correct single-process usage
-   - Clarified that programmatic usage is recommended
+3. **tests/hello.test.js** (41 lines added)
+   - Added `execSync` import from `child_process`
+   - Added new test suite: `Hello CLI Integration` with 3 tests
 
 **Impact:**
 - ✅ All usage text now matches actual CLI invocation
