@@ -300,7 +300,7 @@ conversionTable.forEach(({ celsius, fahrenheit, description, tolerance }) => {
 
 #### 8. Stopwatch Semantics Documentation (README)
 
-**File:** `READMe.md`
+**File:** `README.md`
 
 **Added:**
 ```markdown
