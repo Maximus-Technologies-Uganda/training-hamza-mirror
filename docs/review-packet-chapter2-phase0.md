@@ -52,7 +52,7 @@ console.error('Usage: node cli.js --name <name> [--shout]');
 console.error('Usage: node src/hello/cli.js --name <name> [--shout]');
 ```
 
-**File:** `READMe.md` (line 260-262)
+**File:** `READMe.md` (line 288)
 
 **Before:**
 ```
