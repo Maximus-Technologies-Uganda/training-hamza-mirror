@@ -29,7 +29,7 @@ Phase 0 is a **tightening gate** that cleans up rough edges from Chapter 1 befor
 - Temperature Core: `src/temperature/index.js`
 - Temperature CLI: `src/temperature/cli.js`
 - Temperature Tests: `tests/temperature.test.js`
-- Stopwatch README: `READMe.md` (Stopwatch section)
+- Stopwatch README: `README.md` (Stopwatch section)
 
 ---
 
