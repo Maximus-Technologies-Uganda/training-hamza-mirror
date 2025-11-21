@@ -69,7 +69,7 @@ export function addTask(text, options = {}) {
   }
 
   if (isDuplicate(text, dueDate)) {
-    throw new Error('Duplicate task: a task with the same text and due date already exists');
+    throw new Error('Duplicate task');
   }
 
   const task = {
