@@ -27,7 +27,7 @@ function main() {
 
     if (!name) {
       console.error('Error: --name argument is required');
-      console.error('Usage: node cli.js --name <name> [--shout]');
+      console.error('Usage: node src/hello/cli.js --name <name> [--shout]');
       process.exit(1);
     }
 
