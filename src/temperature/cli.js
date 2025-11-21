@@ -2,6 +2,11 @@
 
 import { convert } from './index.js';
 
+/**
+ * Parses command-line arguments
+ * @param {string[]} args - Array of command-line arguments
+ * @returns {Object} Parsed arguments object
+ */
 function parseArgs(args) {
   const parsed = {
     from: null,
@@ -46,36 +51,39 @@ function showUsage() {
   console.error('  --value  Temperature value to convert');
 }
 
-function main() {
-  const args = process.argv.slice(2);
-
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+/**
+ * Main CLI logic that can be tested without spawning a process
+ * @param {string[]} argv - Command-line arguments (without node/script path)
+ * @returns {number} Exit code (0 for success, 1 for error)
+ */
+export function run(argv) {
+  if (argv.length === 0 || argv.includes('--help') || argv.includes('-h')) {
     showUsage();
-    process.exit(args.length === 0 ? 1 : 0);
+    return argv.length === 0 ? 1 : 0;
   }
 
-  const { from, to, value } = parseArgs(args);
+  const { from, to, value } = parseArgs(argv);
 
   // Validate required arguments
   if (!from) {
     console.error('Error: --from flag is required');
     console.error('');
     showUsage();
-    process.exit(1);
+    return 1;
   }
 
   if (!to) {
     console.error('Error: --to flag is required');
     console.error('');
     showUsage();
-    process.exit(1);
+    return 1;
   }
 
   if (!value) {
     console.error('Error: --value flag is required');
     console.error('');
     showUsage();
-    process.exit(1);
+    return 1;
   }
 
   // Parse temperature value
@@ -85,7 +93,7 @@ function main() {
     console.error('Temperature must be a valid number');
     console.error('');
     console.error('Examples of valid values: 0, -40, 98.6, 37.5');
-    process.exit(1);
+    return 1;
   }
 
   // Perform conversion
@@ -95,6 +103,7 @@ function main() {
     // Success output
     console.log(`Input:  ${formatTemperature(numValue, from)}`);
     console.log(`Output: ${formatTemperature(result, to)}`);
+    return 0;
   } catch (error) {
     // Handle validation errors with helpful messages
     console.error(`Error: ${error.message}`);
@@ -111,8 +120,11 @@ function main() {
       console.error('Please provide a valid numeric temperature value.');
     }
     
-    process.exit(1);
+    return 1;
   }
 }
 
-main();
+// Only run if executed directly (not imported)
+if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
+  process.exit(run(process.argv.slice(2)));
+}

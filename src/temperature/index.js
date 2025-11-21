@@ -1,19 +1,22 @@
 /**
-<<<<<<< HEAD
-=======
- * Validates that the temperature input is a valid number
- * @param {any} temp - Temperature value to validate
- * @param {string} label - Label for error message (e.g., "Celsius", "Fahrenheit")
- * @throws {Error} If temperature is not a valid number
+ * Validates that a temperature value is a valid number.
+ * 
+ * Infinity Policy: We REJECT Infinity values explicitly.
+ * Rationale: While Infinity is technically a JavaScript number,
+ * it doesn't represent a physical temperature that can be converted.
+ * Physical temperatures are bounded (absolute zero exists), and allowing
+ * Infinity would produce meaningless conversion results.
+ * 
+ * @param {any} value - Value to validate
+ * @throws {Error} If value is not a valid finite number
  */
-function validateTemperature(temp, label) {
-  if (typeof temp !== 'number' || isNaN(temp) || !isFinite(temp)) {
-    throw new Error(`${label} temperature must be a number`);
+export function assertValidTemperature(value) {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+    throw new Error('Temperature must be a number');
   }
 }
 
 /**
->>>>>>> e4a76857885b4876461d23e508d639917bdedbb1
  * Converts Celsius to Fahrenheit
  * Formula: F = (C × 9/5) + 32
  * @param {number} celsius - Temperature in Celsius
@@ -21,9 +24,7 @@ function validateTemperature(temp, label) {
  * @throws {Error} If input is not a valid number
  */
 export function cToF(celsius) {
-  if (typeof celsius !== 'number' || isNaN(celsius)) {
-    throw new Error('Temperature must be a number');
-  }
+  assertValidTemperature(celsius);
   return (celsius * 9) / 5 + 32;
 }
 
@@ -35,9 +36,7 @@ export function cToF(celsius) {
  * @throws {Error} If input is not a valid number
  */
 export function fToC(fahrenheit) {
-  if (typeof fahrenheit !== 'number' || isNaN(fahrenheit)) {
-    throw new Error('Temperature must be a number');
-  }
+  assertValidTemperature(fahrenheit);
   return ((fahrenheit - 32) * 5) / 9;
 }
 
