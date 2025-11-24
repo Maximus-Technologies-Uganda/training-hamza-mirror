@@ -1,0 +1,406 @@
+openapi: 3.1.0
+info:
+  title: Blog Posts API
+  description: |
+    A production-shaped REST API for blog post management with CRUD operations, 
+    validation, error handling, rate limiting, and swappable persistence.
+  version: 1.0.0
+  contact:
+    name: Training Project
+    url: https://github.com/Maximus-Technologies-Uganda/training-hamza
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: health
+    description: Service health monitoring
+  - name: posts
+    description: Blog post CRUD operations
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns service health status for monitoring and load balancers
+      operationId: getHealth
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - timestamp
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2025-11-24T12:00:00.000Z'
+
+  /posts:
+    get:
+      summary: List all posts
+      description: Retrieve a list of all blog posts
+      operationId: listPosts
+      tags:
+        - posts
+      responses:
+        '200':
+          description: Successful response with list of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create a new post
+      description: Create a new blog post with title and body content
+      operationId: createPost
+      tags:
+        - posts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+            examples:
+              basic:
+                summary: Basic post creation
+                value:
+                  title: "Getting Started with Node.js"
+                  body: "Node.js is a JavaScript runtime built on Chrome's V8 engine."
+              long:
+                summary: Post with longer content
+                value:
+                  title: "Advanced JavaScript Patterns"
+                  body: "In this comprehensive guide, we'll explore advanced JavaScript patterns including closures, prototypes, and async/await..."
+      responses:
+        '201':
+          description: Post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /posts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+
+    get:
+      summary: Get a post by ID
+      description: Retrieve a single blog post by its unique identifier
+      operationId: getPostById
+      tags:
+        - posts
+      responses:
+        '200':
+          description: Post found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Update a post
+      description: Partially update an existing post's title and/or body
+      operationId: updatePost
+      tags:
+        - posts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+            examples:
+              updateTitle:
+                summary: Update only title
+                value:
+                  title: "Updated: Getting Started with Node.js"
+              updateBody:
+                summary: Update only body
+                value:
+                  body: "Node.js is an asynchronous event-driven JavaScript runtime..."
+              updateBoth:
+                summary: Update both fields
+                value:
+                  title: "Complete Guide to Node.js"
+                  body: "This comprehensive guide covers everything you need to know..."
+      responses:
+        '200':
+          description: Post updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete a post
+      description: Permanently delete a blog post
+      operationId: deletePost
+      tags:
+        - posts
+      responses:
+        '204':
+          description: Post deleted successfully (no content)
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  parameters:
+    PostId:
+      name: id
+      in: path
+      required: true
+      description: Unique post identifier
+      schema:
+        type: integer
+        minimum: 1
+        example: 42
+
+  schemas:
+    Post:
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - body
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          description: Unique post identifier (auto-generated)
+          example: 42
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '\S'
+          description: Post title (must contain non-whitespace)
+          example: "Getting Started with Node.js"
+        slug:
+          type: string
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+          description: URL-friendly slug (auto-generated from title)
+          example: "getting-started-with-nodejs"
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          pattern: '\S'
+          description: Post content (must contain non-whitespace)
+          example: "Node.js is a JavaScript runtime built on Chrome's V8 engine."
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601, immutable)
+          example: "2025-11-24T12:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last modification timestamp (ISO 8601)
+          example: "2025-11-24T12:30:00.000Z"
+
+    CreatePostRequest:
+      type: object
+      required:
+        - title
+        - body
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '\S'
+          description: Post title
+          example: "Getting Started with Node.js"
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          pattern: '\S'
+          description: Post content
+          example: "Node.js is a JavaScript runtime..."
+
+    UpdatePostRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '\S'
+          description: Updated post title
+          example: "Complete Guide to Node.js"
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          pattern: '\S'
+          description: Updated post content
+          example: "This comprehensive guide covers everything..."
+
+    Error:
+      type: object
+      required:
+        - statusCode
+        - error
+        - message
+      properties:
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error type
+          example: "Bad Request"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "title is required"
+        validation:
+          type: array
+          description: Validation errors (present for 400 responses)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "title"
+              message:
+                type: string
+                example: "must contain non-whitespace characters"
+
+  responses:
+    ValidationError:
+      description: Invalid request data (missing required fields, constraint violations)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missingTitle:
+              summary: Missing title field
+              value:
+                statusCode: 400
+                error: "Bad Request"
+                message: "title is required"
+            titleTooLong:
+              summary: Title exceeds maximum length
+              value:
+                statusCode: 400
+                error: "Bad Request"
+                message: "title must not exceed 200 characters"
+            whitespaceOnly:
+              summary: Title contains only whitespace
+              value:
+                statusCode: 400
+                error: "Bad Request"
+                message: "title must contain non-whitespace characters"
+            invalidId:
+              summary: Invalid post ID format
+              value:
+                statusCode: 400
+                error: "Bad Request"
+                message: "id must be a positive integer"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            statusCode: 404
+            error: "Not Found"
+            message: "Post with id 42 not found"
+
+    RateLimitExceeded:
+      description: Rate limit exceeded for this IP address
+      headers:
+        X-RateLimit-Limit:
+          description: Maximum requests allowed per time window
+          schema:
+            type: integer
+            example: 100
+        X-RateLimit-Remaining:
+          description: Requests remaining in current window
+          schema:
+            type: integer
+            example: 0
+        X-RateLimit-Reset:
+          description: Timestamp when rate limit resets (Unix epoch seconds)
+          schema:
+            type: integer
+            example: 1732454400
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            statusCode: 429
+            error: "Too Many Requests"
+            message: "Rate limit exceeded. Please try again later."
+
+    InternalServerError:
+      description: Internal server error (no sensitive details exposed)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            statusCode: 500
+            error: "Internal Server Error"
+            message: "An unexpected error occurred"
