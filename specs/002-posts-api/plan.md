@@ -288,7 +288,7 @@ describe('POST /posts', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/posts',
-      payload: { title: 'Test Post', body: 'This is test content' }
+      payload: { content: 'This is test content' }
     });
     
     expect(response.statusCode).toBe(201);
