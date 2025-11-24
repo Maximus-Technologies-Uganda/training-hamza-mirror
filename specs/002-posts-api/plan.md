@@ -565,7 +565,6 @@ export const config = {
 
 - **Fastify Validation:** Automatic rejection of invalid types
 - **Length Limits:** Enforced at schema level
-- **Slug Generation:** Strip special characters, prevent path traversal
 - **No HTML Rendering:** Raw text storage only (XSS not applicable yet)
 
 ### Rate Limiting
