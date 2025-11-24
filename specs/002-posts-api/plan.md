@@ -153,7 +153,6 @@ class PostsRepository {
   async findAll() { throw new Error('Not implemented'); }
   async update(id, postData) { throw new Error('Not implemented'); }
   async delete(id) { throw new Error('Not implemented'); }
-  async existsBySlug(slug) { throw new Error('Not implemented'); }
 }
 ```
 
