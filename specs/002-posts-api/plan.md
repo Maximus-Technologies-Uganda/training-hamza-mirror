@@ -245,9 +245,9 @@ export function createApp(options = {}) {
 **Example:**
 ```javascript
 describe('PostsService.create', () => {
-  it('should reject title shorter than 3 characters', async () => {
+  it('should reject content shorter than 10 characters', async () => {
     const service = new PostsService(mockRepo);
-    await expect(service.create({ title: 'AB', body: 'Valid body content' }))
+    await expect(service.create({ content: 'Too short' }))
       .rejects.toThrow(ValidationError);
   });
 });
