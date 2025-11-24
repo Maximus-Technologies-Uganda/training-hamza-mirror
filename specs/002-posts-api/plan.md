@@ -259,7 +259,6 @@ describe('PostsService.create', () => {
 - `POST /posts`: Success (201), validation errors (400)
 - `GET /posts`: Empty array, multiple posts
 - `GET /posts/{id}`: Success (200), not found (404)
-- `PATCH /posts/{id}`: Partial updates, validation errors
 - `DELETE /posts/{id}`: Success (204), not found (404)
 - `GET /health`: Status response
 
