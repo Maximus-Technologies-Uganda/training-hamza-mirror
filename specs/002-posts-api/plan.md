@@ -456,11 +456,8 @@ const createPostSchema = {
       type: 'object',
       properties: {
         id: { type: 'string', format: 'uuid' },
-        title: { type: 'string' },
-        body: { type: 'string' },
-        slug: { type: 'string' },
-        createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' }
+        content: { type: 'string' },
+        createdAt: { type: 'string', format: 'date-time' }
       }
     }
   }
