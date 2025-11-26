@@ -31,8 +31,56 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run tests with coverage
+        run: npm test -- --coverage
+
+      - name: Install Newman (Postman CLI)
+        run: npm install -g newman newman-reporter-htmlextra
+
       - name: Create review packet directory
         run: mkdir -p review-packet
+
+      - name: Run Postman collection tests
+        run: |
+          node src/blog/server.js &
+          SERVER_PID=$!
+          sleep 5
+          newman run docs/blog-posts-api.postman_collection.json \
+            --environment <(echo '{"id":"test-env","name":"Test","values":[{"key":"baseUrl","value":"http://localhost:3000","enabled":true}]}') \
+            --reporters cli,json,htmlextra \
+            --reporter-json-export review-packet/postman-results.json \
+            --reporter-htmlextra-export review-packet/postman-report.html \
+            --color on \
+            || echo "Postman tests completed with issues"
+          kill $SERVER_PID 2>/dev/null || true
+        continue-on-error: true
+
+      - name: Generate Postman summary
+        run: |
+          if [ -f review-packet/postman-results.json ]; then
+            echo "# Postman Test Results" > review-packet/postman-summary.md
+            echo "" >> review-packet/postman-summary.md
+            echo "**Collection**: Blog Posts API" >> review-packet/postman-summary.md
+            echo "**Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> review-packet/postman-summary.md
+            echo "" >> review-packet/postman-summary.md
+            node -e "
+              const fs = require('fs');
+              const results = JSON.parse(fs.readFileSync('review-packet/postman-results.json', 'utf8'));
+              const run = results.run;
+              console.log('## Summary\n');
+              console.log('- Total Requests: ' + run.stats.requests.total);
+              console.log('- Assertions: ' + run.stats.assertions.total);
+              console.log('- Failed Assertions: ' + run.stats.assertions.failed);
+              console.log('- Test Scripts: ' + run.stats.testScripts.total);
+              console.log('- Failed Tests: ' + run.stats.testScripts.failed);
+              console.log('\n## Status: ' + (run.stats.assertions.failed === 0 ? '✅ All tests passed' : '❌ Some tests failed'));
+            " >> review-packet/postman-summary.md
+            echo "" >> review-packet/postman-summary.md
+            echo "See \`postman-report.html\` for detailed results." >> review-packet/postman-summary.md
+          else
+            echo "⚠️ Postman results not generated" > review-packet/postman-summary.md
+          fi
+        continue-on-error: true
 
       - name: Copy documentation
         run: |
