@@ -38,6 +38,6 @@
     "@fastify/swagger-ui": "^4.2.0",
     "better-sqlite3": "^12.4.6",
     "fastify": "^4.29.1",
-    "slugify": "1.6"
+    "slugify": "^1.6.0"
   }
 }

@@ -63,7 +63,7 @@ export async function errorHandler(error, request, reply) {
 
   // Map error to HTTP response
   let statusCode = error.statusCode || 500;
-  let errorType = 'Error';
+  let errorType;
   let message = error.message || 'An unexpected error occurred';
 
   // Handle custom API errors

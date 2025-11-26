@@ -21,11 +21,12 @@ This project contains **three CLI applications** built incrementally to practice
 
 | CLI | Purpose | Key Features | Tests |
 |-----|---------|--------------|-------|
-| **Hello CLI** | Greeting generator | Name parameter, shout mode | 6 tests |
+| **Hello CLI** | Greeting generator | Name parameter, shout mode, CLI integration | 9 tests |
 | **Stopwatch CLI** | Time tracking | Start, lap, stop commands | 13 tests |
-| **Temperature CLI** | Unit converter | C↔F conversion, validation | 24 tests |
+| **Temperature CLI** | Unit converter | C↔F conversion, validation, table-driven | 40 tests |
 
-**Total: 44 comprehensive tests** (+ 1 sanity check)
+**Total: 63 comprehensive tests** (+ 1 sanity check)
+- **Phase 0 Improvements:** +19 tests, run(argv) pattern, table-driven tests, explicit Infinity policy
 
 ### Quick Start
 
@@ -736,50 +737,37 @@ console.log(convert(37, 'C', 'F'));  // 98.6
 
 A stopwatch with start, lap, and stop functionality.
 
-#### Starting the Stopwatch
+> **⚠️ Important: Single-Process Limitation**  
+> The stopwatch CLI stores state in memory within a single Node.js process. Each time you run `node src/stopwatch/cli.js`, a **new process starts with fresh state**. This means:
+> - Running `start` in one shell invocation, then `lap` in another **will not work** (the lap command starts a new process that doesn't remember the start time)
+> - State does **not persist** between separate command invocations
+> - For a working stopwatch sequence, use the **demo script** shown below, which runs all commands in one process
+
+#### Working Demo (Single Process)
+
+To see the stopwatch work correctly, run the demo script that keeps state in one process:
 
 ```bash
-node src/stopwatch/cli.js start
+node src/stopwatch/demo.js
 ```
 
-Output: `Stopwatch started`
-
-#### Recording Lap Times
-
-While the stopwatch is running, record lap times:
-
-```bash
-node src/stopwatch/cli.js lap
+This demonstrates the intended behavior:
 ```
+=== Stopwatch CLI Demo ===
 
-Output: `Lap: 00:05.432`
+$ node src/stopwatch/cli.js start
+Stopwatch started
 
-#### Stopping the Stopwatch
+$ node src/stopwatch/cli.js lap
+Lap: 00:02.003
 
-```bash
-node src/stopwatch/cli.js stop
-```
+$ node src/stopwatch/cli.js lap
+Lap: 00:03.505
 
-Output: `Stopped: 00:10.876`
+$ node src/stopwatch/cli.js stop
+Stopped: 00:04.506
 
-#### Example Session
-
-```bash
-# Start the stopwatch
-node src/stopwatch/cli.js start
-# Stopwatch started
-
-# Record first lap
-node src/stopwatch/cli.js lap
-# Lap: 00:03.245
-
-# Record second lap
-node src/stopwatch/cli.js lap
-# Lap: 00:07.891
-
-# Stop the stopwatch
-node src/stopwatch/cli.js stop
-# Stopped: 00:12.456
+=== Demo Complete ===
 ```
 
 #### Stopwatch Error Cases
@@ -805,7 +793,7 @@ node src/stopwatch/cli.js stop
 
 #### Using the Stopwatch Module
 
-Import and use the stopwatch in your code:
+The stopwatch is designed to be imported and used programmatically in a single process:
 
 ```javascript
 import { createStopwatch, formatTime } from './src/stopwatch/index.js';
@@ -822,6 +810,8 @@ setTimeout(() => {
   console.log(`Total: ${formatTime(sw.elapsedMs())}`);
 }, 2000);
 ```
+
+This is the **recommended way** to use the stopwatch, as it maintains state correctly within your application.
 
 ### Hello CLI (Greeting)
 
@@ -872,7 +862,7 @@ node src/hello/cli.js --shout
 Output:
 ```
 Error: --name argument is required
-Usage: node cli.js --name <name> [--shout]
+Usage: node src/hello/cli.js --name <name> [--shout]
 ```
 Exit code: `1`
 
