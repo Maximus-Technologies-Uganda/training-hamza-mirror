@@ -42,8 +42,8 @@ export class SQLiteStorage {
         title TEXT NOT NULL CHECK(length(trim(title)) > 0 AND length(title) <= 200),
         slug TEXT NOT NULL UNIQUE CHECK(slug NOT LIKE '%[-][-]%'),
         body TEXT NOT NULL CHECK(length(trim(body)) > 0 AND length(body) <= 50000),
-        createdAt TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-        updatedAt TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+        createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updatedAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
       );
 
       CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(createdAt DESC);
@@ -59,7 +59,7 @@ export class SQLiteStorage {
   async createPost({ title, slug, body }) {
     const stmt = this.db.prepare(`
       INSERT INTO posts (title, slug, body, createdAt, updatedAt)
-      VALUES (?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+      VALUES (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     `);
 
     const info = stmt.run(title, slug, body);
@@ -146,7 +146,7 @@ export class SQLiteStorage {
     }
 
     // Always update updatedAt
-    fields.push("updatedAt = datetime('now', 'localtime')");
+    fields.push("updatedAt = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
     values.push(id); // WHERE id = ?
 
     const stmt = this.db.prepare(`
