@@ -7,6 +7,7 @@
 
 import { ValidationError, NotFoundError } from '../middleware/error-handler.js';
 import { validatePost } from '../models/post.js';
+import { generateSlug } from './slug-generator.js';
 
 export class PostService {
   /**
@@ -31,8 +32,14 @@ export class PostService {
       throw new ValidationError(validation.errors.join(', '));
     }
 
+    // Generate slug from title
+    const slug = generateSlug(postData.title);
+
     // Create post via storage adapter
-    const post = await this.storage.createPost(postData);
+    const post = await this.storage.createPost({
+      ...postData,
+      slug
+    });
     return post;
   }
 
