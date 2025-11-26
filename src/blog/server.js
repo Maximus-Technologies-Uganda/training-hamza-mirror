@@ -196,7 +196,6 @@ async function start() {
 
 // Start server if running as main module
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
