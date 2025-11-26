@@ -36,11 +36,21 @@ export class PostService {
     const slug = generateSlug(postData.title);
 
     // Create post via storage adapter
-    const post = await this.storage.createPost({
-      ...postData,
-      slug
-    });
-    return post;
+    try {
+      const post = await this.storage.createPost({
+        ...postData,
+        slug
+      });
+      return post;
+    } catch (error) {
+      // Catch SQLite UNIQUE constraint violation for duplicate slugs
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || 
+          (error.message && error.message.includes('UNIQUE constraint failed'))) {
+        throw new ValidationError(`A post with a similar title already exists (slug: ${slug})`);
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   /**
@@ -98,6 +108,11 @@ export class PostService {
       if (!/\S/.test(updates.body)) {
         throw new ValidationError('body must contain at least one non-whitespace character');
       }
+    }
+
+    // Regenerate slug if title is being updated
+    if (updates.title !== undefined) {
+      updates.slug = generateSlug(updates.title);
     }
 
     // Update post via storage adapter
