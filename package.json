@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "dev": "node src/blog/server.js",
+    "start": "NODE_ENV=production node src/blog/server.js"
   },
   "repository": {
     "type": "git",
@@ -20,7 +22,22 @@
   },
   "homepage": "https://github.com/Maximus-Technologies-Uganda/training-hamza#readme",
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.10",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^2.1.1",
+    "pino-pretty": "^13.1.2",
     "vite": "^7.2.0",
     "vitest": "^4.0.10"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/request-context": "^4.2.0",
+    "@fastify/swagger": "^8.15.0",
+    "@fastify/swagger-ui": "^4.2.0",
+    "better-sqlite3": "^12.4.6",
+    "fastify": "^4.29.1",
+    "slugify": "^1.6.0"
   }
 }

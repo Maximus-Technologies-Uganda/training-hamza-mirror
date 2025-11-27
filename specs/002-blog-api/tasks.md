@@ -19,12 +19,12 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project directory structure: src/blog/, src/blog/models/, src/blog/services/, src/blog/storage/, src/blog/middleware/, src/blog/routes/
-- [ ] T002 Initialize Node.js 20.x project with package.json and configure ES modules (type: "module")
-- [ ] T003 [P] Install Fastify dependencies: fastify@4.x, @fastify/swagger@latest, @fastify/rate-limit@latest
-- [ ] T004 [P] Install utility dependencies: slugify@1.6.x
-- [ ] T005 [P] Install development dependencies: vitest@4.x (if not present)
-- [ ] T006 [P] Configure .gitignore for node_modules/, data/*.db (SQLite files)
+- [X] T001 Create project directory structure: src/blog/, src/blog/models/, src/blog/services/, src/blog/storage/, src/blog/middleware/, src/blog/routes/
+- [X] T002 Initialize Node.js 20.x project with package.json and configure ES modules (type: "module")
+- [X] T003 [P] Install Fastify dependencies: fastify@4.x, @fastify/swagger@latest, @fastify/rate-limit@latest
+- [X] T004 [P] Install utility dependencies: slugify@1.6.x
+- [X] T005 [P] Install development dependencies: vitest@4.x (if not present)
+- [X] T006 [P] Configure .gitignore for node_modules/, data/*.db (SQLite files)
 
 ---
 
@@ -34,12 +34,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T007 Define storage adapter interface in src/blog/storage/storage-adapter.js (createPost, getAllPosts, getPostById, updatePost, deletePost methods)
-- [ ] T008 [P] Implement centralized error handler middleware in src/blog/middleware/error-handler.js (custom error classes: ApiError, ValidationError, NotFoundError, RateLimitError)
-- [ ] T009 [P] Implement slug generator service in src/blog/services/slug-generator.js using slugify library (lower: true, strict: true)
-- [ ] T010 [P] Define Post entity model in src/blog/models/post.js with validation rules (title 1-200 chars, body 1-50000 chars, non-whitespace patterns)
-- [ ] T011 Implement in-memory storage adapter in src/blog/storage/memory-storage.js implementing StorageAdapter interface
-- [ ] T012 Create Fastify server initialization in src/blog/server.js (register error handler, configure JSON parsing, setup logging)
+- [X] T007 Define storage adapter interface in src/blog/storage/storage-adapter.js (createPost, getAllPosts, getPostById, updatePost, deletePost methods)
+- [X] T008 [P] Implement centralized error handler middleware in src/blog/middleware/error-handler.js (custom error classes: ApiError, ValidationError, NotFoundError, RateLimitError)
+- [X] T009 [P] Implement slug generator service in src/blog/services/slug-generator.js using slugify library (lower: true, strict: true)
+- [X] T010 [P] Define Post entity model in src/blog/models/post.js with validation rules (title 1-200 chars, body 1-50000 chars, non-whitespace patterns)
+- [X] T011 Implement in-memory storage adapter in src/blog/storage/memory-storage.js implementing StorageAdapter interface
+- [X] T012 Create Fastify server initialization in src/blog/server.js (register error handler, configure JSON parsing, setup logging)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -53,8 +53,8 @@
 
 ### Implementation for User Story 4
 
-- [ ] T013 [US4] Implement health check route in src/blog/routes/health.js (GET /health endpoint returning {status: "ok", timestamp: ISO8601})
-- [ ] T014 [US4] Register health route in src/blog/server.js with Fastify (ensure responds within 1 second per FR-033)
+- [X] T013 [US4] Implement health check route in src/blog/routes/health.js (GET /health endpoint returning {status: "ok", timestamp: ISO8601})
+- [X] T014 [US4] Register health route in src/blog/server.js with Fastify (ensure responds within 1 second per FR-033)
 
 **Checkpoint**: Health endpoint is functional and can be tested independently
 
@@ -68,14 +68,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implement PostService in src/blog/services/post-service.js (createPost method with slug generation, timestamp creation, validation)
-- [ ] T016 [US1] Add getAllPosts method to PostService in src/blog/services/post-service.js (retrieve all posts from storage)
-- [ ] T017 [US1] Add getPostById method to PostService in src/blog/services/post-service.js (retrieve single post, throw NotFoundError if not exists)
-- [ ] T018 [US1] Implement POST /posts route in src/blog/routes/posts.js with Fastify JSON Schema validation (require title and body, maxLength constraints per FR-006 to FR-011)
-- [ ] T019 [US1] Implement GET /posts route in src/blog/routes/posts.js (list all posts)
-- [ ] T020 [US1] Implement GET /posts/:id route in src/blog/routes/posts.js with path parameter validation (id must be positive integer)
-- [ ] T021 [US1] Register posts routes in src/blog/server.js with Fastify
-- [ ] T022 [US1] Add request validation for title and body fields (non-whitespace pattern, FR-010, FR-011)
+- [X] T015 [US1] Implement PostService in src/blog/services/post-service.js (createPost method with slug generation, timestamp creation, validation)
+- [X] T016 [US1] Add getAllPosts method to PostService in src/blog/services/post-service.js (retrieve all posts from storage)
+- [X] T017 [US1] Add getPostById method to PostService in src/blog/services/post-service.js (retrieve single post, throw NotFoundError if not exists)
+- [X] T018 [US1] Implement POST /posts route in src/blog/routes/posts.js with Fastify JSON Schema validation (require title and body, maxLength constraints per FR-006 to FR-011)
+- [X] T019 [US1] Implement GET /posts route in src/blog/routes/posts.js (list all posts)
+- [X] T020 [US1] Implement GET /posts/:id route in src/blog/routes/posts.js with path parameter validation (id must be positive integer)
+- [X] T021 [US1] Register posts routes in src/blog/server.js with Fastify
+- [X] T022 [US1] Add request validation for title and body fields (non-whitespace pattern, FR-010, FR-011)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional - can create posts, list all posts, and retrieve individual posts with proper validation
 
@@ -89,10 +89,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Add updatePost method to PostService in src/blog/services/post-service.js (partial update with title/body, regenerate slug if title changes, preserve createdAt, update updatedAt per FR-013, FR-017, FR-018)
-- [ ] T024 [US2] Implement PATCH /posts/:id route in src/blog/routes/posts.js with Fastify JSON Schema validation (at least one field required: title or body, same constraints as create)
-- [ ] T025 [US2] Add validation to ensure at least one field is provided in update request (return 400 if empty body)
-- [ ] T026 [US2] Handle NotFoundError for non-existent posts in update route (return 404 per FR-022)
+- [X] T023 [US2] Add updatePost method to PostService in src/blog/services/post-service.js (partial update with title/body, regenerate slug if title changes, preserve createdAt, update updatedAt per FR-013, FR-017, FR-018)
+- [X] T024 [US2] Implement PATCH /posts/:id route in src/blog/routes/posts.js with Fastify JSON Schema validation (at least one field required: title or body, same constraints as create)
+- [X] T025 [US2] Add validation to ensure at least one field is provided in update request (return 400 if empty body)
+- [X] T026 [US2] Handle NotFoundError for non-existent posts in update route (return 404 per FR-022)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently - can create, read, and update posts
 
@@ -106,9 +106,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Add deletePost method to PostService in src/blog/services/post-service.js (remove post from storage, throw NotFoundError if not exists)
-- [ ] T028 [US3] Implement DELETE /posts/:id route in src/blog/routes/posts.js (return 204 No Content on success per OpenAPI spec)
-- [ ] T029 [US3] Handle NotFoundError for non-existent posts in delete route (return 404 per FR-022)
+- [X] T027 [US3] Add deletePost method to PostService in src/blog/services/post-service.js (remove post from storage, throw NotFoundError if not exists)
+- [X] T028 [US3] Implement DELETE /posts/:id route in src/blog/routes/posts.js (return 204 No Content on success per OpenAPI spec)
+- [X] T029 [US3] Handle NotFoundError for non-existent posts in delete route (return 404 per FR-022)
 
 **Checkpoint**: All core CRUD user stories are now independently functional (US1, US2, US3, US4)
 
@@ -122,10 +122,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T030 [US5] Configure @fastify/rate-limit plugin in src/blog/server.js (max: 100 requests, timeWindow: 60000ms per FR-027 to FR-030)
-- [ ] T031 [US5] Configure rate limit to track by IP address (default @fastify/rate-limit behavior)
-- [ ] T032 [US5] Customize rate limit error response to include RateLimitError with helpful message and rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
-- [ ] T033 [US5] Register rate limit middleware before route registration in src/blog/server.js
+- [X] T030 [US5] Configure @fastify/rate-limit plugin in src/blog/server.js (max: 100 requests, timeWindow: 60000ms per FR-027 to FR-030)
+- [X] T031 [US5] Configure rate limit to track by IP address (default @fastify/rate-limit behavior)
+- [X] T032 [US5] Customize rate limit error response to include RateLimitError with helpful message and rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
+- [X] T033 [US5] Register rate limit middleware before route registration in src/blog/server.js
 
 **Checkpoint**: Rate limiting is enforced across all endpoints - API is protected from abuse
 
@@ -139,12 +139,12 @@
 
 ### Implementation for User Story 6
 
-- [ ] T034 [US6] Update error handler middleware in src/blog/middleware/error-handler.js to ensure consistent JSON error structure for all error types ({statusCode, error, message} per FR-020)
-- [ ] T035 [US6] Map ValidationError to 400 status code with field-specific messages in error handler (FR-021)
-- [ ] T036 [US6] Map NotFoundError to 404 status code with resource identifier in message (FR-022)
-- [ ] T037 [US6] Map RateLimitError to 429 status code with rate limit information (FR-023)
-- [ ] T038 [US6] Map unhandled errors to 500 status code with generic message, strip stack traces in production mode (FR-024, FR-025)
-- [ ] T039 [US6] Ensure all route error responses include helpful guidance messages per FR-026
+- [X] T034 [US6] Update error handler middleware in src/blog/middleware/error-handler.js to ensure consistent JSON error structure for all error types ({statusCode, error, message} per FR-020)
+- [X] T035 [US6] Map ValidationError to 400 status code with field-specific messages in error handler (FR-021)
+- [X] T036 [US6] Map NotFoundError to 404 status code with resource identifier in message (FR-022)
+- [X] T037 [US6] Map RateLimitError to 429 status code with rate limit information (FR-023)
+- [X] T038 [US6] Map unhandled errors to 500 status code with generic message, strip stack traces in production mode (FR-024, FR-025)
+- [X] T039 [US6] Ensure all route error responses include helpful guidance messages per FR-026
 
 **Checkpoint**: All error responses are consistent, informative, and secure - excellent developer experience
 
@@ -154,16 +154,54 @@
 
 **Purpose**: Improvements that affect multiple user stories and optional features
 
-- [ ] T040 [P] Add environment variable configuration in src/blog/server.js (PORT, NODE_ENV, STORAGE_TYPE, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW)
-- [ ] T041 [P] Create main library export in src/blog/index.js (export service factory, storage adapters, models)
-- [ ] T042 [P] Add npm scripts to package.json (dev, start, test)
-- [ ] T043 [P] OPTIONAL: Implement SQLite storage adapter in src/blog/storage/sqlite-storage.js using better-sqlite3 (if time permits per Day 4 timeline C-012)
-- [ ] T044 [P] OPTIONAL: Add SQLite schema creation with indexes in src/blog/storage/sqlite-storage.js (posts table with id, title, slug, body, createdAt, updatedAt)
-- [ ] T045 [P] Generate OpenAPI specification using @fastify/swagger plugin (validate against contracts/openapi.yaml)
-- [ ] T046 Add validation that generated OpenAPI matches contracts/openapi.yaml specification (FR-039)
-- [ ] T047 Run through quickstart.md scenarios to validate all endpoints work as documented
-- [ ] T048 [P] Add JSDoc comments to all public methods in services and storage adapters
-- [ ] T049 Code review: Check that all functional requirements FR-001 to FR-042 are implemented
+- [X] T040 [P] Add environment variable configuration in src/blog/server.js (PORT, NODE_ENV, STORAGE_TYPE, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW)
+- [X] T041 [P] Create main library export in src/blog/index.js (export service factory, storage adapters, models)
+- [X] T042 [P] Add npm scripts to package.json (dev, start, test)
+- [X] T043 [P] OPTIONAL: Implement SQLite storage adapter in src/blog/storage/sqlite-storage.js using better-sqlite3 (if time permits per Day 4 timeline C-012)
+- [X] T044 [P] OPTIONAL: Add SQLite schema creation with indexes in src/blog/storage/sqlite-storage.js (posts table with id, title, slug, body, createdAt, updatedAt)
+- [X] T050 [P] DAY 4: Add @fastify/cors plugin for CORS support (development: allow all, production: whitelist)
+- [X] T051 [P] DAY 4: Add @fastify/helmet plugin for security headers (CSP, HSTS, X-Frame-Options, etc.)
+- [X] T052 [P] DAY 4: Add @fastify/request-context for request ID tracking in logs
+- [X] T053 DAY 4: Configure Fastify request ID generation (UUID) and logging with request ID
+- [X] T054 DAY 4: Wire up storage adapter selection via STORAGE_TYPE env var (memory|sqlite)
+- [X] T055 DAY 4: Create comprehensive SQLite adapter tests (26 test cases covering all CRUD operations, constraints, persistence)
+- [X] T047 Run through quickstart.md scenarios to validate all endpoints work as documented
+- [X] T048 [P] Add JSDoc comments to all public methods in services and storage adapters
+- [X] T049 Code review: Check that all functional requirements FR-001 to FR-042 are implemented
+
+---
+
+## Phase 10: OpenAPI Contract & Documentation (Day 3 Deliverables)
+
+**Purpose**: Generate OpenAPI specification, implement contract tests, create Postman collection, and document API usage
+
+**⚠️ CRITICAL**: Required for Day 3 completion - OpenAPI contract generation, contract tests, Postman collection, and README documentation
+
+- [X] T045 Register @fastify/swagger plugin in src/blog/server.js to auto-generate OpenAPI 3.1 spec from Fastify route schemas
+- [X] T046 Configure @fastify/swagger with proper API metadata (title, description, version, servers) matching contracts/openapi.yaml structure
+- [X] T047 Add GET /docs/json endpoint to expose generated OpenAPI specification in JSON format
+- [X] T048 Add GET /docs endpoint to serve Swagger UI for interactive API documentation
+- [X] T049 Validate generated OpenAPI spec against contracts/openapi.yaml (ensure all paths, schemas, responses match)
+- [X] T050 [P] Install contract testing dependencies: ajv@^8.12.0 (JSON Schema validation), ajv-formats@^2.1.1 (format validation)
+- [X] T051 Create contract test suite in tests/blog/contract/posts-api.test.js using Vitest and Fastify inject()
+- [X] T052 Add contract tests for POST /posts endpoint (validate request/response against OpenAPI schema)
+- [X] T053 [P] Add contract tests for GET /posts endpoint (validate response array against OpenAPI schema)
+- [X] T054 [P] Add contract tests for GET /posts/{id} endpoint (validate response and 404 error against OpenAPI schema)
+- [X] T055 [P] Add contract tests for PATCH /posts/{id} endpoint (validate request/response and errors against OpenAPI schema)
+- [X] T056 [P] Add contract tests for DELETE /posts/{id} endpoint (validate 204 response and 404 error against OpenAPI schema)
+- [X] T057 [P] Add contract tests for GET /health endpoint (validate response structure against OpenAPI schema)
+- [X] T058 [P] Add contract tests for rate limiting responses (validate 429 error structure and headers against OpenAPI schema)
+- [X] T059 [P] Add contract tests for validation errors (validate 400 error structure against OpenAPI schema)
+- [X] T060 Create Postman collection in docs/blog-posts-api.postman_collection.json with all CRUD endpoints
+- [X] T061 Add Postman collection examples for health check, create post, list posts, get post, update post, delete post
+- [X] T062 Add Postman collection examples for error scenarios (validation errors, 404, rate limiting)
+- [X] T063 Add environment variables to Postman collection (baseUrl, port) for easy configuration
+- [X] T064 Update README.md with "Blog Posts API" section including quick start guide, API endpoints summary, and link to OpenAPI spec
+- [X] T065 Add "Running Tests" section to README.md including contract tests command and coverage expectations
+- [X] T066 Add "API Documentation" section to README.md with links to OpenAPI spec, Swagger UI, and Postman collection
+- [X] T067 Add "Day 3 Deliverables" section to README.md documenting completion of CRUD, contract tests, and documentation
+
+**Checkpoint**: Day 3 complete - All CRUD endpoints working, OpenAPI contract generated and validated, contract tests passing, Postman collection created, README documentation updated
 
 ---
 
@@ -208,7 +246,9 @@
 
 **After Phase 2 completes**: US4, US1, US5, US6 can all START in parallel (though US1 must complete before US2)
 
-**Phase 9 (Polish)**: T040, T041, T042, T043, T044, T045, T048 can all run in parallel
+**Phase 9 (Polish)**: T040, T041, T042, T043, T044, T048 can all run in parallel
+
+**Phase 10 (OpenAPI & Docs)**: After T045-T049 complete, T050-T059 (contract tests), T060-T063 (Postman), T064-T067 (README) can all run in parallel
 
 ---
 
@@ -258,6 +298,7 @@ Task: "Update error handler middleware in src/blog/middleware/error-handler.js"
 4. **Add US5** (Phase 7): Rate limiting → Deploy/Demo ✅ (Production hardening)
 5. **Add US6** (Phase 8): Error handling polish → Deploy/Demo ✅ (Developer experience)
 6. **Polish** (Phase 9): Optional features (SQLite), documentation, refinement
+7. **Day 3 Deliverable** (Phase 10): OpenAPI contract generation, contract tests, Postman collection, README documentation → Production-ready with full docs ✅
 
 Each increment adds value without breaking previous functionality.
 
@@ -329,7 +370,7 @@ Use this to verify feature completion:
 
 ---
 
-## Total Task Count: 49 tasks
+## Total Task Count: 67 tasks
 
 - **Setup**: 6 tasks
 - **Foundational**: 6 tasks (BLOCKING)
@@ -339,10 +380,13 @@ Use this to verify feature completion:
 - **User Story 3 (Delete)**: 3 tasks
 - **User Story 5 (Rate Limiting)**: 4 tasks
 - **User Story 6 (Error Handling)**: 6 tasks
-- **Polish**: 10 tasks (includes optional SQLite)
+- **Polish**: 6 tasks (includes optional SQLite)
+- **OpenAPI Contract & Documentation (Day 3)**: 23 tasks
 
-**Parallel Opportunities**: 15+ tasks can run in parallel across different phases
+**Parallel Opportunities**: 20+ tasks can run in parallel across different phases
 
 **MVP Scope (Recommended)**: Phases 1-4 (US4 + US1) = 22 tasks → Delivers core value
+
+**Day 3 Scope**: Phases 1-10 (All CRUD + Contract Tests + Docs) = 67 tasks → Production-ready API with full documentation
 
 **Format Validation**: ✅ All tasks follow required checklist format with checkboxes, IDs, labels, and file paths

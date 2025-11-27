@@ -1,0 +1,615 @@
+{
+  "info": {
+    "name": "Blog Posts API",
+    "_postman_id": "blog-posts-api-v1",
+    "description": "Complete collection for testing the Blog Posts API with CRUD operations, validation, error handling, and rate limiting.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "postId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Get Health Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check API health status. Should return 200 OK with status and timestamp."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"ok\",\n  \"timestamp\": \"2025-11-26T12:00:00.000Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Posts - CRUD Operations",
+      "item": [
+        {
+          "name": "Create Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Save post ID for subsequent requests",
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('postId', response.id);",
+                  "    ",
+                  "    // Validate response structure",
+                  "    pm.test('Status code is 201', () => {",
+                  "        pm.response.to.have.status(201);",
+                  "    });",
+                  "    ",
+                  "    pm.test('Response has required fields', () => {",
+                  "        pm.expect(response).to.have.property('id');",
+                  "        pm.expect(response).to.have.property('title');",
+                  "        pm.expect(response).to.have.property('slug');",
+                  "        pm.expect(response).to.have.property('body');",
+                  "        pm.expect(response).to.have.property('createdAt');",
+                  "        pm.expect(response).to.have.property('updatedAt');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Getting Started with Node.js\",\n  \"body\": \"Node.js is a JavaScript runtime built on Chrome's V8 engine. It enables developers to build scalable network applications using JavaScript on the server side.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts"]
+            },
+            "description": "Create a new blog post with title and body. Returns 201 with the created post including auto-generated ID, slug, and timestamps."
+          },
+          "response": [
+            {
+              "name": "Success - Post Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Getting Started with Node.js\",\n  \"body\": \"Node.js is a JavaScript runtime built on Chrome's V8 engine.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/posts",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"title\": \"Getting Started with Node.js\",\n  \"slug\": \"getting-started-with-nodejs\",\n  \"body\": \"Node.js is a JavaScript runtime built on Chrome's V8 engine.\",\n  \"createdAt\": \"2025-11-26T12:00:00.000Z\",\n  \"updatedAt\": \"2025-11-26T12:00:00.000Z\"\n}"
+            },
+            {
+              "name": "Error - Missing Title",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"Content without a title\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/posts",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"statusCode\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"body must have required property 'title'\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "List All Posts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is an array', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts"]
+            },
+            "description": "Retrieve a list of all blog posts. Returns 200 with an array of posts."
+          },
+          "response": [
+            {
+              "name": "Success - Posts List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/posts",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 1,\n    \"title\": \"Getting Started with Node.js\",\n    \"slug\": \"getting-started-with-nodejs\",\n    \"body\": \"Node.js is a JavaScript runtime...\",\n    \"createdAt\": \"2025-11-26T12:00:00.000Z\",\n    \"updatedAt\": \"2025-11-26T12:00:00.000Z\"\n  },\n  {\n    \"id\": 2,\n    \"title\": \"Advanced JavaScript Patterns\",\n    \"slug\": \"advanced-javascript-patterns\",\n    \"body\": \"In this guide, we explore...\",\n    \"createdAt\": \"2025-11-26T12:05:00.000Z\",\n    \"updatedAt\": \"2025-11-26T12:05:00.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get Post by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has post details', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('id');",
+                  "    pm.expect(response).to.have.property('title');",
+                  "    pm.expect(response).to.have.property('slug');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}"]
+            },
+            "description": "Retrieve a single post by its ID. Returns 200 with post details, or 404 if post doesn't exist."
+          },
+          "response": [
+            {
+              "name": "Success - Post Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/posts/1",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts", "1"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"title\": \"Getting Started with Node.js\",\n  \"slug\": \"getting-started-with-nodejs\",\n  \"body\": \"Node.js is a JavaScript runtime built on Chrome's V8 engine.\",\n  \"createdAt\": \"2025-11-26T12:00:00.000Z\",\n  \"updatedAt\": \"2025-11-26T12:00:00.000Z\"\n}"
+            },
+            {
+              "name": "Error - Post Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/posts/999",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts", "999"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"statusCode\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Post with id 999 not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Post was updated', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.updatedAt).to.not.equal(response.createdAt);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Complete Guide to Node.js\",\n  \"body\": \"This comprehensive guide covers everything you need to know about Node.js, from basics to advanced topics.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}"]
+            },
+            "description": "Update an existing post's title and/or body. Returns 200 with updated post, or 404 if post doesn't exist."
+          },
+          "response": [
+            {
+              "name": "Success - Post Updated",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Complete Guide to Node.js\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/posts/1",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts", "1"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"title\": \"Complete Guide to Node.js\",\n  \"slug\": \"complete-guide-to-nodejs\",\n  \"body\": \"Node.js is a JavaScript runtime built on Chrome's V8 engine.\",\n  \"createdAt\": \"2025-11-26T12:00:00.000Z\",\n  \"updatedAt\": \"2025-11-26T12:30:00.000Z\"\n}"
+            },
+            {
+              "name": "Error - Post Not Found",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated Title\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/posts/999",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts", "999"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"statusCode\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Post with id 999 not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('Response body is empty', () => {",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}"]
+            },
+            "description": "Permanently delete a post. Returns 204 No Content on success, or 404 if post doesn't exist."
+          },
+          "response": [
+            {
+              "name": "Success - Post Deleted",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/posts/1",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts", "1"]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": null,
+              "header": [],
+              "body": ""
+            },
+            {
+              "name": "Error - Post Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/posts/999",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["posts", "999"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"statusCode\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Post with id 999 not found\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Scenarios",
+      "item": [
+        {
+          "name": "Validation Error - Whitespace Only Title",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"   \",\n  \"body\": \"This has a whitespace-only title\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts"]
+            },
+            "description": "Test validation for whitespace-only title. Should return 400 with validation error."
+          },
+          "response": []
+        },
+        {
+          "name": "Validation Error - Title Too Long",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"This is an extremely long title that exceeds the maximum allowed length of 200 characters. It keeps going and going to demonstrate what happens when a client submits a title that is way too long for the API to accept.\",\n  \"body\": \"Test body content\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts"]
+            },
+            "description": "Test validation for title exceeding max length (200 chars). Should return 400."
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid ID Format",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/posts/invalid-id",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "invalid-id"]
+            },
+            "description": "Test with invalid ID format (non-numeric). Should return 400."
+          },
+          "response": []
+        },
+        {
+          "name": "Empty Update Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/posts/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "1"]
+            },
+            "description": "Test update with empty body. Should return 400 as at least one field is required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Documentation",
+      "item": [
+        {
+          "name": "Get OpenAPI Specification (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/docs/json",
+              "host": ["{{baseUrl}}"],
+              "path": ["docs", "json"]
+            },
+            "description": "Retrieve the OpenAPI 3.1 specification in JSON format."
+          },
+          "response": []
+        },
+        {
+          "name": "Open Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/docs",
+              "host": ["{{baseUrl}}"],
+              "path": ["docs"]
+            },
+            "description": "Access the interactive Swagger UI documentation. Open this URL in a browser."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
