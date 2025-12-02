@@ -495,6 +495,26 @@
       "item": [
         {
           "name": "Validation Error - Whitespace Only Title",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error details', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('statusCode', 400);",
+                  "    pm.expect(response).to.have.property('error');",
+                  "    pm.expect(response).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -518,6 +538,26 @@
         },
         {
           "name": "Validation Error - Title Too Long",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error details', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('statusCode', 400);",
+                  "    pm.expect(response).to.have.property('error');",
+                  "    pm.expect(response).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -541,6 +581,26 @@
         },
         {
           "name": "Invalid ID Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error details', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('statusCode', 400);",
+                  "    pm.expect(response).to.have.property('error');",
+                  "    pm.expect(response).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -555,6 +615,26 @@
         },
         {
           "name": "Empty Update Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error details', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('statusCode', 400);",
+                  "    pm.expect(response).to.have.property('error');",
+                  "    pm.expect(response).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "PATCH",
             "header": [
@@ -583,6 +663,26 @@
       "item": [
         {
           "name": "Get OpenAPI Specification (JSON)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is valid OpenAPI specification', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('openapi');",
+                  "    pm.expect(response).to.have.property('info');",
+                  "    pm.expect(response).to.have.property('paths');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -597,6 +697,23 @@
         },
         {
           "name": "Open Swagger UI",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains HTML content', () => {",
+                  "    pm.expect(pm.response.text()).to.include('swagger-ui');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],

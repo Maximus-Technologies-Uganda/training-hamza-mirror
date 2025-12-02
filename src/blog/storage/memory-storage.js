@@ -21,11 +21,20 @@ export class MemoryStorage extends StorageAdapter {
    * @returns {Promise<Object>} Created post with generated fields
    */
   async createPost(postData) {
+    const slug = postData.slug ?? generateSlug(postData.title);
+
+    // Mirror SQLite UNIQUE constraint on slug
+    if (Array.from(this.posts.values()).some(existing => existing.slug === slug)) {
+      const error = new Error('UNIQUE constraint failed: posts.slug');
+      error.code = 'SQLITE_CONSTRAINT_UNIQUE';
+      throw error;
+    }
+
     const now = new Date().toISOString();
     const post = {
       id: this.nextId++,
       title: postData.title,
-      slug: generateSlug(postData.title),
+      slug,
       body: postData.body,
       createdAt: now,
       updatedAt: now
@@ -64,13 +73,31 @@ export class MemoryStorage extends StorageAdapter {
       return null;
     }
 
+    // Determine the next slug (regenerate when title changes unless explicitly provided)
+    const nextSlug = updates.slug !== undefined
+      ? updates.slug
+      : (updates.title !== undefined ? generateSlug(updates.title) : post.slug);
+
+    // Enforce slug uniqueness (skip self)
+    if (nextSlug !== post.slug) {
+      const hasConflict = Array.from(this.posts.values())
+        .some(existing => existing.id !== id && existing.slug === nextSlug);
+      if (hasConflict) {
+        const error = new Error('UNIQUE constraint failed: posts.slug');
+        error.code = 'SQLITE_CONSTRAINT_UNIQUE';
+        throw error;
+      }
+    }
+
     // Update fields
     if (updates.title !== undefined) {
       post.title = updates.title;
-      post.slug = generateSlug(updates.title); // Regenerate slug when title changes
     }
     if (updates.body !== undefined) {
       post.body = updates.body;
+    }
+    if (updates.title !== undefined || updates.slug !== undefined) {
+      post.slug = nextSlug;
     }
 
     // Update timestamp (preserve createdAt)

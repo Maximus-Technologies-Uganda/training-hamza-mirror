@@ -14,3 +14,11 @@ jobs:
       - run: npm ci
       - run: npm run lint --if-present
       - run: npm test
+      - name: Start Blog API Server
+        run: npm run dev &
+        env:
+          NODE_ENV: test
+      - name: Wait for Server
+        run: npx wait-on http://localhost:3000/health -t 30000
+      - name: Run Postman Collection with Newman
+        run: npx newman run docs/blog-posts-api.postman_collection.json --env-var baseUrl=http://localhost:3000

@@ -23,7 +23,7 @@ import { postsRoutes } from './routes/posts.js';
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'memory';
+const STORAGE_TYPE = process.env.STORAGE_TYPE || (NODE_ENV === 'production' ? 'sqlite' : 'memory');
 const SQLITE_DB_PATH = process.env.SQLITE_DB_PATH || './data/blog.db';
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
 const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10); // 1 minute default
@@ -64,9 +64,9 @@ export function createServer(options = {}) {
   if (!options.skipRequestContext) {
     fastify.register(fastifyRequestContext, {
       hook: 'preValidation',
-      defaultStoreValues: (req) => ({
-        requestId: req.id
-      })
+      defaultStoreValues: {
+        requestId: () => randomUUID()
+      }
     });
   }
 
