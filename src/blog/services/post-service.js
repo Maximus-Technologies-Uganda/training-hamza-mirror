@@ -116,11 +116,21 @@ export class PostService {
     }
 
     // Update post via storage adapter
-    const post = await this.storage.updatePost(id, updates);
-    if (!post) {
-      throw new NotFoundError(`Post with id ${id} not found`);
+    try {
+      const post = await this.storage.updatePost(id, updates);
+      if (!post) {
+        throw new NotFoundError(`Post with id ${id} not found`);
+      }
+      return post;
+    } catch (error) {
+      // Catch SQLite UNIQUE constraint violation for duplicate slugs
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || 
+          (error.message && error.message.includes('UNIQUE constraint failed'))) {
+        throw new ValidationError(`A post with a similar title already exists (slug: ${updates.slug})`);
+      }
+      // Re-throw other errors
+      throw error;
     }
-    return post;
   }
 
   /**
