@@ -6,7 +6,6 @@ import Script from 'next/script';
 import { SWRProvider } from '@/components/SWRProvider';
 import HealthIndicator from '@/components/HealthIndicator';
 
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Blog Frontend',
