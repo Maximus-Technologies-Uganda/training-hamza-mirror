@@ -15,7 +15,6 @@ import fastifyRequestContext from '@fastify/request-context';
 import { randomUUID } from 'crypto';
 import { errorHandler } from './middleware/error-handler.js';
 import { MemoryStorage } from './storage/memory-storage.js';
-import { SQLiteStorage } from './storage/sqlite-storage.js';
 import { healthRoutes } from './routes/health.js';
 import { postsRoutes } from './routes/posts.js';
 
@@ -29,9 +28,21 @@ const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
 const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10); // 1 minute default
 
 /**
+ * Create storage adapter based on configuration
+ * Uses dynamic import for SQLite to avoid loading native module when not needed
+ */
+async function createStorage() {
+  if (STORAGE_TYPE === 'sqlite') {
+    const { SQLiteStorage } = await import('./storage/sqlite-storage.js');
+    return new SQLiteStorage(SQLITE_DB_PATH);
+  }
+  return new MemoryStorage();
+}
+
+/**
  * Create and configure Fastify instance
  */
-export function createServer(options = {}) {
+export async function createServer(options = {}) {
   const fastify = Fastify({
     logger: NODE_ENV === 'production' ? {
       level: 'info',
@@ -65,15 +76,13 @@ export function createServer(options = {}) {
     fastify.register(fastifyRequestContext, {
       hook: 'preValidation',
       defaultStoreValues: (req) => ({
-        requestId: req.id
+        requestId: req?.id || 'unknown'
       })
     });
   }
 
-  // Initialize storage adapter based on configuration
-  const storage = STORAGE_TYPE === 'sqlite' 
-    ? new SQLiteStorage(SQLITE_DB_PATH)
-    : new MemoryStorage();
+  // Initialize storage adapter based on configuration (dynamic import for SQLite)
+  const storage = await createStorage();
   
   fastify.decorate('storage', storage);
   
@@ -183,7 +192,7 @@ export function createServer(options = {}) {
  * Start the server
  */
 async function start() {
-  const server = createServer();
+  const server = await createServer();
 
   try {
     await server.listen({ port: PORT, host: HOST });
