@@ -372,10 +372,15 @@ describe('DeleteConfirm Accessibility', () => {
         render(<DeleteConfirm {...defaultProps} />);
       });
       
-      // Tab through all focusable elements
-      await user.tab();
-      await user.tab();
-      await user.tab();
+      // Wait for initial focus to be set on Cancel button
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
+      });
+      
+      // Tab through all focusable elements (Cancel -> Delete -> Cancel)
+      // Modal has 2 focusable buttons, so 2 tabs cycles back to start
+      await user.tab(); // Cancel -> Delete
+      await user.tab(); // Delete -> Cancel (cycle back)
       
       // Should cycle back to first element, never focusing backdrop
       expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
