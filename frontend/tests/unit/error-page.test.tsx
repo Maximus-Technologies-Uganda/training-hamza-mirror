@@ -163,11 +163,17 @@ describe('Error Component', () => {
     const originalNodeEnv = process.env.NODE_ENV;
 
     afterEach(() => {
-      process.env.NODE_ENV = originalNodeEnv;
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: originalNodeEnv,
+        configurable: true,
+      });
     });
 
     it('shows error message in development mode', () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: 'development',
+        configurable: true,
+      });
       const error = new Error('Detailed error message for debugging');
       const reset = jest.fn();
 

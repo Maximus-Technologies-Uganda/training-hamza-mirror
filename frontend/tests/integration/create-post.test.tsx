@@ -24,15 +24,21 @@ jest.mock('next/navigation', () => ({
 // Create custom error class for testing that matches the real ApiError interface
 class MockApiError extends Error {
   statusCode: number;
+  error: string;
+  details?: string;
   validation?: Array<{ field: string; message: string }>;
   
   constructor(
     statusCode: number,
     message: string,
+    error: string = 'Error',
+    details?: string,
     validation?: Array<{ field: string; message: string }>
   ) {
     super(message);
     this.statusCode = statusCode;
+    this.error = error;
+    this.details = details;
     this.name = 'ApiError';
     this.validation = validation;
   }
@@ -51,15 +57,21 @@ jest.mock('@/lib/api', () => {
   // Define class inside the factory to avoid hoisting issues
   class InnerMockApiError extends Error {
     statusCode: number;
+    error: string;
+    details?: string;
     validation?: Array<{ field: string; message: string }>;
     
     constructor(
       statusCode: number,
       message: string,
+      error: string = 'Error',
+      details?: string,
       validation?: Array<{ field: string; message: string }>
     ) {
       super(message);
       this.statusCode = statusCode;
+      this.error = error;
+      this.details = details;
       this.name = 'ApiError';
       this.validation = validation;
     }
@@ -341,7 +353,7 @@ describe('Create Post Integration', () => {
     it('displays field-level validation errors inline from API response', async () => {
       const user = userEvent.setup();
       mockCreatePost.mockRejectedValue(
-        new api.ApiError(400, 'Validation failed', [
+        new api.ApiError(400, 'Validation failed', 'Bad Request', undefined, [
           { field: 'title', message: 'A post with this title already exists' },
         ])
       );
@@ -369,7 +381,7 @@ describe('Create Post Integration', () => {
     it('displays body field validation error inline', async () => {
       const user = userEvent.setup();
       mockCreatePost.mockRejectedValue(
-        new api.ApiError(400, 'Validation failed', [
+        new api.ApiError(400, 'Validation failed', 'Bad Request', undefined, [
           { field: 'body', message: 'Body content is too short' },
         ])
       );
@@ -421,7 +433,7 @@ describe('Create Post Integration', () => {
     it('marks fields with API validation errors as invalid for accessibility', async () => {
       const user = userEvent.setup();
       mockCreatePost.mockRejectedValue(
-        new api.ApiError(400, 'Validation failed', [
+        new api.ApiError(400, 'Validation failed', 'Bad Request', undefined, [
           { field: 'title', message: 'Title taken' },
         ])
       );
