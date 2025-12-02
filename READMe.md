@@ -316,6 +316,36 @@ The Postman collection includes:
 - Error scenario examples
 - Rate limiting demonstrations
 
+#### Running Postman Collection with Newman
+
+Newman allows you to run the Postman collection from the command line:
+
+```bash
+# Start the server first
+npm run dev
+
+# In another terminal, run the collection
+npm run test:postman
+
+# Or run Newman directly
+newman run docs/blog-posts-api.postman_collection.json --env-var baseUrl=http://localhost:3000
+```
+
+**Expected Results:**
+- Total Requests: 12
+- Assertions: 22
+- Failed: 0
+
+The collection validates:
+- ✅ Health check endpoint
+- ✅ CRUD operations (Create, Read, Update, Delete)
+- ✅ Validation error scenarios (whitespace, too long, empty)
+- ✅ Invalid ID format handling
+- ✅ OpenAPI specification endpoint
+- ✅ Swagger UI endpoint
+- ✅ Proper status codes (200, 201, 204, 400)
+- ✅ Response structure validation
+
 ### Data Validation Rules
 
 **Title**:
@@ -624,6 +654,66 @@ src/blog/
 - **Service Layer**: Business logic separated from HTTP concerns
 - **Middleware Pattern**: Centralized error handling and rate limiting
 - **Repository Pattern**: Storage abstraction
+
+---
+
+## Blog Frontend (Week 6)
+
+A responsive web frontend for the Blog Posts API built with Next.js, TypeScript, and Tailwind CSS.
+
+### Features
+
+- 📝 **View All Posts** - Browse a list of all published blog posts with titles, dates, and excerpts
+- 📖 **View Post Details** - Read full post content with metadata and timestamps
+- ✏️ **Create Posts** - Compose and publish new blog posts with form validation
+- 🔄 **Edit Posts** - Update existing posts with change detection
+- 🗑️ **Delete Posts** - Remove posts with confirmation dialog
+- 🏥 **Health Monitoring** - Real-time API health status indicator
+
+### Tech Stack
+
+- **Framework**: Next.js 14+ with App Router
+- **Language**: TypeScript 5.5+ (strict mode)
+- **Styling**: Tailwind CSS 3.4+
+- **Data Fetching**: SWR 2.2+ (with automatic caching)
+- **Testing**: Jest + React Testing Library + jest-axe
+- **Deployment**: Static export to GitHub Pages
+
+### Quick Start
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Configure API URL
+cp .env.example .env.local
+# Edit .env.local and set NEXT_PUBLIC_API_URL=http://localhost:3001
+
+# Start development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Frontend Demo
+
+The live frontend is deployed to GitHub Pages:
+
+🔗 **Live Demo**: [https://maximus-technologies-uganda.github.io/training-hamza/](https://maximus-technologies-uganda.github.io/training-hamza/)
+
+**Note**: The demo requires the Blog Posts API to be running. For full functionality, start the API locally:
+
+```bash
+# Start the Blog API (port 3001)
+npm run blog:dev
+```
+
+### Documentation
+
+For complete setup instructions, environment configuration, and deployment guide, see the [Frontend README](frontend/README.md).
 
 ---
 

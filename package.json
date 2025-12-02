@@ -6,6 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest --watch",
+    "test:postman": "newman run docs/blog-posts-api.postman_collection.json --env-var baseUrl=http://localhost:3000",
     "dev": "node src/blog/server.js",
     "start": "NODE_ENV=production node src/blog/server.js"
   },
@@ -25,9 +26,12 @@
     "@vitest/coverage-v8": "^4.0.10",
     "ajv": "^8.17.1",
     "ajv-formats": "^2.1.1",
+    "jest": "^30.2.0",
+    "newman": "^6.2.1",
     "pino-pretty": "^13.1.2",
     "vite": "^7.2.0",
-    "vitest": "^4.0.10"
+    "vitest": "^4.0.10",
+    "wait-on": "^8.0.1"
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",

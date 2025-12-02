@@ -6,7 +6,7 @@
 import { createServer } from './src/blog/server.js';
 
 async function testAPI() {
-  const server = createServer();
+  const server = await createServer();
 
   try {
     console.log('🧪 Testing Blog Posts API\n');

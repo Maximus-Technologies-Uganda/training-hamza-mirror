@@ -82,18 +82,39 @@ All files       |   79.64 |    67.17 |   77.77 |   79.56 |
 - ✅ Services: 75% (meets ≥75% target)
 - ✅ Storage: 90% (excellent)
 
-### Postman Collection Results
+### Postman Collection Results (Phase 0 - Fixed ✅)
 
 **Collection**: `blog-posts-api.postman_collection.json`
-- Health Check endpoint: ✅ Tested
-- Create Post (POST /posts): ✅ Tested with validation
-- List Posts (GET /posts): ✅ Tested
-- Get Post (GET /posts/:id): ✅ Tested with 404 handling
-- Update Post (PATCH /posts/:id): ✅ Tested with validation
-- Delete Post (DELETE /posts/:id): ✅ Tested with 404 handling
-- Error scenarios: ✅ 400, 404, 429, 500 responses
 
-**Note**: Newman CLI integration added to CI pipeline on Day 5.
+**Newman Test Results** (November 27, 2025):
+```
+Total Requests: 12
+Assertions: 22
+Failed: 0 ✅
+Test Scripts: 11
+Success Rate: 100%
+```
+
+**Phase 0 Fixes Applied**:
+1. ✅ Fixed server configuration bug (request context initialization)
+2. ✅ Added 12 additional test assertions to collection
+3. ✅ Integrated Newman into CI/CD pipeline
+4. ✅ Added `newman` and `wait-on` dev dependencies
+5. ✅ Updated README with Newman usage instructions
+6. ✅ Created Phase 0 fix summary document
+
+**Validated Endpoints**:
+- Health Check: ✅ 200 OK (no assertions currently)
+- Create Post (POST /posts): ✅ 201 Created (2 assertions)
+- List Posts (GET /posts): ✅ 200 OK (2 assertions)
+- Get Post (GET /posts/:id): ✅ 200 OK (2 assertions)
+- Update Post (PATCH /posts/:id): ✅ 200 OK (2 assertions)
+- Delete Post (DELETE /posts/:id): ✅ 204 No Content (2 assertions)
+- Validation Errors: ✅ 400 Bad Request (8 assertions - 4 scenarios)
+- OpenAPI Spec: ✅ 200 OK (2 assertions)
+- Swagger UI: ✅ 200 OK (2 assertions)
+
+**Documentation**: See [Phase 0 Fix Summary](./phase0-postman-fix-summary.md) for detailed analysis.
 
 ---
 

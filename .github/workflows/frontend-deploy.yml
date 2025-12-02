@@ -1,0 +1,200 @@
+# GitHub Actions Workflow: Frontend Build & Deploy
+# Builds the Next.js frontend and deploys to GitHub Pages
+#
+# Triggers:
+# - Push to main/development branch with frontend/ changes
+# - Pull requests affecting frontend/
+# - Manual workflow dispatch
+#
+# Jobs:
+# 1. CI: Type-check, lint, test, build
+# 2. CD: Deploy to GitHub Pages (main branch only)
+
+name: Frontend Build & Deploy
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  pull_request:
+    branches: [main, development]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  workflow_dispatch:
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # CI Job: Build and Test
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: TypeScript type-check
+        run: npm run type-check
+      
+      - name: Lint code
+        run: npm run lint
+      
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        env:
+          CI: true
+      
+      - name: Build application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3001' }}
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/out
+          retention-days: 1
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: frontend/coverage
+          retention-days: 7
+
+  # CD Job: Deploy to GitHub Pages (main branch only)
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    
+    # Grant GITHUB_TOKEN permissions for deployment
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: ./out
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Quality Gates (optional metrics reporting)
+  quality-check:
+    name: Quality Gates
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && needs.build.result == 'success'
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/out
+      
+      - name: Check bundle size
+        run: |
+          echo "📊 Bundle Size Analysis"
+          echo "========================"
+          
+          # Calculate total size of JS and CSS files
+          TOTAL_SIZE=$(find out -type f \( -name "*.js" -o -name "*.css" \) -exec du -cb {} + | tail -1 | cut -f1)
+          TOTAL_KB=$((TOTAL_SIZE / 1024))
+          
+          echo "Total JS/CSS size: ${TOTAL_KB}KB"
+          
+          # Check against 500KB limit (uncompressed, compressed will be smaller)
+          if [ "$TOTAL_KB" -gt 500 ]; then
+            echo "⚠️ Warning: Bundle size exceeds 500KB limit"
+            # Not failing for now, as this is uncompressed size
+          else
+            echo "✅ Bundle size within limit"
+          fi
+          
+          # List largest files
+          echo ""
+          echo "Largest files:"
+          find out -type f \( -name "*.js" -o -name "*.css" \) -exec du -h {} + | sort -rh | head -10
+      
+      - name: Report test coverage summary
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "📊 Test Coverage Summary"
+            echo "========================"
+            node -e "
+              const coverage = require('./coverage/coverage-summary.json');
+              const total = coverage.total;
+              console.log('Lines:      ' + total.lines.pct + '%');
+              console.log('Functions:  ' + total.functions.pct + '%');
+              console.log('Branches:   ' + total.branches.pct + '%');
+              console.log('Statements: ' + total.statements.pct + '%');
+              
+              // Check 70% threshold
+              if (total.lines.pct < 70) {
+                console.log('⚠️ Warning: Line coverage below 70% target');
+                process.exit(1);
+              } else {
+                console.log('✅ Coverage meets 70% target');
+              }
+            "
+          else
+            echo "Coverage report not found"
+          fi

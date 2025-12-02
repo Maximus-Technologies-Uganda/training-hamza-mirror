@@ -11,6 +11,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
+      - name: Install build dependencies for native modules
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3
       - run: npm ci
       - run: npm run lint --if-present
       - run: npm test
+      - name: Start Blog API Server
+        run: npm run dev &
+        env:
+          NODE_ENV: test
+      - name: Wait for Server
+        run: npx wait-on http://localhost:3000/health -t 60000
+      - name: Run Postman Collection with Newman
+        run: npx newman run docs/blog-posts-api.postman_collection.json --env-var baseUrl=http://localhost:3000

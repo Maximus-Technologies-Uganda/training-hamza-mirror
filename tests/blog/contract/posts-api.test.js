@@ -17,7 +17,7 @@ describe('Blog Posts API - Contract Tests', () => {
 
   beforeAll(async () => {
     // Initialize server (skip CORS, Helmet, and request context for cleaner test output)
-    server = createServer({ 
+    server = await createServer({ 
       logger: false,
       skipCors: true,
       skipHelmet: true,
