@@ -129,13 +129,15 @@ export default function DeleteConfirm({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
+      aria-hidden="false"
     >
-      {/* Backdrop overlay */}
+      {/* Backdrop overlay - not focusable, clicks close modal */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
         aria-hidden="true"
         data-testid="modal-backdrop"
         onClick={handleBackdropClick}
+        onMouseDown={(e) => e.preventDefault()}
       />
 
       {/* Modal dialog */}
