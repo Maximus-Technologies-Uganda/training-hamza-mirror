@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import { axe } from 'jest-axe';
 import PostList from '@/components/PostList';
 import type { Post } from '@/lib/types';
@@ -30,22 +30,34 @@ describe('PostList Accessibility', () => {
   ];
 
   it('should not have any accessibility violations with posts', async () => {
-    const { container } = render(<PostList posts={mockPosts} />);
-    const results = await axe(container);
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<PostList posts={mockPosts} />);
+      container = result.container;
+    });
+    const results = await axe(container!);
     expect(results).toHaveNoViolations();
   });
 
   it('should not have any accessibility violations when empty', async () => {
-    const { container } = render(<PostList posts={[]} />);
-    const results = await axe(container);
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<PostList posts={[]} />);
+      container = result.container;
+    });
+    const results = await axe(container!);
     expect(results).toHaveNoViolations();
   });
 
   it('should have proper heading hierarchy', async () => {
-    const { container } = render(<PostList posts={mockPosts} />);
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<PostList posts={mockPosts} />);
+      container = result.container;
+    });
     
     // Check that headings exist and are properly structured
-    const results = await axe(container, {
+    const results = await axe(container!, {
       rules: {
         'heading-order': { enabled: true },
       },
@@ -55,9 +67,13 @@ describe('PostList Accessibility', () => {
   });
 
   it('should have sufficient color contrast', async () => {
-    const { container } = render(<PostList posts={mockPosts} />);
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<PostList posts={mockPosts} />);
+      container = result.container;
+    });
     
-    const results = await axe(container, {
+    const results = await axe(container!, {
       rules: {
         'color-contrast': { enabled: true },
       },
@@ -67,9 +83,13 @@ describe('PostList Accessibility', () => {
   });
 
   it('should have accessible links', async () => {
-    const { container } = render(<PostList posts={mockPosts} />);
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<PostList posts={mockPosts} />);
+      container = result.container;
+    });
     
-    const results = await axe(container, {
+    const results = await axe(container!, {
       rules: {
         'link-name': { enabled: true },
       },
@@ -79,9 +99,13 @@ describe('PostList Accessibility', () => {
   });
 
   it('should use semantic HTML', async () => {
-    const { container } = render(<PostList posts={mockPosts} />);
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<PostList posts={mockPosts} />);
+      container = result.container;
+    });
     
-    const results = await axe(container, {
+    const results = await axe(container!, {
       rules: {
         'list': { enabled: true },
         'listitem': { enabled: true },

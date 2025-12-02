@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import PostForm from '@/components/PostForm';
@@ -34,8 +34,12 @@ jest.mock('@/lib/api', () => ({
 describe('PostForm Accessibility', () => {
   describe('Form Structure', () => {
     it('should not have any accessibility violations in create mode', async () => {
-      const { container } = render(<PostForm />);
-      const results = await axe(container);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm />);
+        container = result.container;
+      });
+      const results = await axe(container!);
       expect(results).toHaveNoViolations();
     });
 
@@ -48,17 +52,25 @@ describe('PostForm Accessibility', () => {
         createdAt: '2025-11-27T10:00:00Z',
         updatedAt: '2025-11-27T10:00:00Z',
       };
-      const { container } = render(<PostForm post={existingPost} isEditMode />);
-      const results = await axe(container);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm post={existingPost} isEditMode />);
+        container = result.container;
+      });
+      const results = await axe(container!);
       expect(results).toHaveNoViolations();
     });
   });
 
   describe('Form Labels', () => {
     it('should have properly associated labels for all form fields', async () => {
-      const { container } = render(<PostForm />);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm />);
+        container = result.container;
+      });
       
-      const results = await axe(container, {
+      const results = await axe(container!, {
         rules: {
           'label': { enabled: true },
         },
@@ -67,14 +79,18 @@ describe('PostForm Accessibility', () => {
       expect(results).toHaveNoViolations();
     });
 
-    it('title input should have accessible label', () => {
-      render(<PostForm />);
+    it('title input should have accessible label', async () => {
+      await act(async () => {
+        render(<PostForm />);
+      });
       const titleInput = screen.getByLabelText(/title/i);
       expect(titleInput).toHaveAccessibleName();
     });
 
-    it('body textarea should have accessible label', () => {
-      render(<PostForm />);
+    it('body textarea should have accessible label', async () => {
+      await act(async () => {
+        render(<PostForm />);
+      });
       const bodyTextarea = screen.getByLabelText(/body/i);
       expect(bodyTextarea).toHaveAccessibleName();
     });
@@ -83,7 +99,9 @@ describe('PostForm Accessibility', () => {
   describe('Error Announcements', () => {
     it('should announce validation errors to screen readers', async () => {
       const user = userEvent.setup();
-      render(<PostForm />);
+      await act(async () => {
+        render(<PostForm />);
+      });
 
       // Submit empty form
       const submitButton = screen.getByRole('button', { name: /create post/i });
@@ -98,13 +116,17 @@ describe('PostForm Accessibility', () => {
 
     it('should not have accessibility violations when displaying errors', async () => {
       const user = userEvent.setup();
-      const { container } = render(<PostForm />);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm />);
+        container = result.container;
+      });
 
       const submitButton = screen.getByRole('button', { name: /create post/i });
       await user.click(submitButton);
 
       await waitFor(async () => {
-        const results = await axe(container);
+        const results = await axe(container!);
         expect(results).toHaveNoViolations();
       });
     });
@@ -158,9 +180,13 @@ describe('PostForm Accessibility', () => {
 
   describe('Focus Management', () => {
     it('should have visible focus indicators', async () => {
-      const { container } = render(<PostForm />);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm />);
+        container = result.container;
+      });
       
-      const results = await axe(container, {
+      const results = await axe(container!, {
         rules: {
           'focus-order-semantics': { enabled: true },
         },
@@ -169,8 +195,10 @@ describe('PostForm Accessibility', () => {
       expect(results).toHaveNoViolations();
     });
 
-    it('buttons should have focus indicators', () => {
-      render(<PostForm />);
+    it('buttons should have focus indicators', async () => {
+      await act(async () => {
+        render(<PostForm />);
+      });
       
       const submitButton = screen.getByRole('button', { name: /create post/i });
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
@@ -183,9 +211,13 @@ describe('PostForm Accessibility', () => {
 
   describe('Color Contrast', () => {
     it('should have sufficient color contrast', async () => {
-      const { container } = render(<PostForm />);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm />);
+        container = result.container;
+      });
       
-      const results = await axe(container, {
+      const results = await axe(container!, {
         rules: {
           'color-contrast': { enabled: true },
         },
@@ -196,19 +228,23 @@ describe('PostForm Accessibility', () => {
   });
 
   describe('Button Accessibility', () => {
-    it('submit button should have accessible name', () => {
-      render(<PostForm />);
+    it('submit button should have accessible name', async () => {
+      await act(async () => {
+        render(<PostForm />);
+      });
       const submitButton = screen.getByRole('button', { name: /create post/i });
       expect(submitButton).toHaveAccessibleName();
     });
 
-    it('cancel button should have accessible name', () => {
-      render(<PostForm />);
+    it('cancel button should have accessible name', async () => {
+      await act(async () => {
+        render(<PostForm />);
+      });
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
       expect(cancelButton).toHaveAccessibleName();
     });
 
-    it('update button should have accessible name in edit mode', () => {
+    it('update button should have accessible name in edit mode', async () => {
       const existingPost: Post = {
         id: 1,
         title: 'Test Post',
@@ -217,23 +253,31 @@ describe('PostForm Accessibility', () => {
         createdAt: '2025-11-27T10:00:00Z',
         updatedAt: '2025-11-27T10:00:00Z',
       };
-      render(<PostForm post={existingPost} isEditMode />);
+      await act(async () => {
+        render(<PostForm post={existingPost} isEditMode />);
+      });
       const updateButton = screen.getByRole('button', { name: /update post/i });
       expect(updateButton).toHaveAccessibleName();
     });
   });
 
   describe('Form Semantics', () => {
-    it('should use proper form element', () => {
-      render(<PostForm />);
+    it('should use proper form element', async () => {
+      await act(async () => {
+        render(<PostForm />);
+      });
       const form = document.querySelector('form');
       expect(form).toBeInTheDocument();
     });
 
     it('should not have duplicate IDs', async () => {
-      const { container } = render(<PostForm />);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm />);
+        container = result.container;
+      });
       
-      const results = await axe(container, {
+      const results = await axe(container!, {
         rules: {
           'duplicate-id': { enabled: true },
         },
@@ -244,8 +288,10 @@ describe('PostForm Accessibility', () => {
   });
 
   describe('Required Field Indication', () => {
-    it('should indicate required fields', () => {
-      render(<PostForm />);
+    it('should indicate required fields', async () => {
+      await act(async () => {
+        render(<PostForm />);
+      });
       
       const titleInput = screen.getByLabelText(/title/i);
       const bodyTextarea = screen.getByLabelText(/body/i);
@@ -259,13 +305,17 @@ describe('PostForm Accessibility', () => {
   describe('Character Count Accessibility', () => {
     it('character count should be accessible', async () => {
       const user = userEvent.setup();
-      const { container } = render(<PostForm />);
+      let container: HTMLElement;
+      await act(async () => {
+        const result = render(<PostForm />);
+        container = result.container;
+      });
 
       const titleInput = screen.getByLabelText(/title/i);
       await user.type(titleInput, 'Hello');
 
       // Character count should be announced (aria-live or similar)
-      const results = await axe(container);
+      const results = await axe(container!);
       expect(results).toHaveNoViolations();
     });
   });
