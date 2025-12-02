@@ -64,9 +64,9 @@ export function createServer(options = {}) {
   if (!options.skipRequestContext) {
     fastify.register(fastifyRequestContext, {
       hook: 'preValidation',
-      defaultStoreValues: {
-        requestId: () => randomUUID()
-      }
+      defaultStoreValues: (req) => ({
+        requestId: req.id
+      })
     });
   }
 

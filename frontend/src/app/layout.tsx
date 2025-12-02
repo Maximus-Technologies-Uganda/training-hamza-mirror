@@ -27,7 +27,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans">
         {/* Restore SPA route from 404.html redirect */}
         <Script id="spa-redirect-restore" strategy="beforeInteractive">
           {`
