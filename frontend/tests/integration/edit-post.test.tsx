@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import type { Post } from '@/lib/types';
@@ -281,10 +281,12 @@ describe('Edit Post Workflow Integration', () => {
         expect(screen.getByRole('button', { name: /updating/i })).toBeInTheDocument();
       });
 
-      // Cleanup by resolving
-      resolvePromise!({
-        ...mockPost,
-        title: 'Updated',
+      // Cleanup by resolving and waiting for state updates
+      await act(async () => {
+        resolvePromise!({
+          ...mockPost,
+          title: 'Updated',
+        });
       });
     });
   });

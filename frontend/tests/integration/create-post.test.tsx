@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import PostForm from '@/components/PostForm';
@@ -301,14 +301,16 @@ describe('Create Post Integration', () => {
         expect(screen.getByRole('button', { name: /creating/i })).toBeInTheDocument();
       });
 
-      // Resolve to clean up
-      resolvePromise!({
-        id: 1,
-        title: 'Test Post',
-        slug: 'test-post',
-        body: 'Test content',
-        createdAt: '2025-11-27T10:00:00Z',
-        updatedAt: '2025-11-27T10:00:00Z',
+      // Resolve and wait for state updates to complete
+      await act(async () => {
+        resolvePromise!({
+          id: 1,
+          title: 'Test Post',
+          slug: 'test-post',
+          body: 'Test content',
+          createdAt: '2025-11-27T10:00:00Z',
+          updatedAt: '2025-11-27T10:00:00Z',
+        });
       });
     });
   });
@@ -333,7 +335,8 @@ describe('Create Post Integration', () => {
       render(<PostForm />);
 
       const titleInput = screen.getByLabelText(/title/i);
-      await user.type(titleInput, 'A'.repeat(201));
+      // Use fireEvent.change for long strings to avoid timeout from typing 201 chars one by one
+      fireEvent.change(titleInput, { target: { value: 'A'.repeat(201) } });
 
       const bodyTextarea = screen.getByLabelText(/body/i);
       await user.type(bodyTextarea, 'Valid body');
