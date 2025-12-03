@@ -325,7 +325,7 @@ jobs:
           
           ### Coverage Summary
           EOF
-          cat review-packet/coverage-summary.md >> review-packet/FRONTEND_REVIEW_PACKET.md 2>/dev/null || echo "Coverage data not available" >> review-packet/FRONTEND_REVIEW_PACKET.md
+          cat review-packet/coverage-summary.md >> review-packet/FRONTEND_REVIEW_PACKET.md || echo "Coverage data not available" >> review-packet/FRONTEND_REVIEW_PACKET.md
           
           cat << 'EOF' >> review-packet/FRONTEND_REVIEW_PACKET.md
           
