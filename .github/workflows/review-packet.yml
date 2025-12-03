@@ -246,6 +246,11 @@ jobs:
           else
             echo "Warning: docs directory does not exist."
           fi
+          if [ -d specs ]; then
+            cp -r specs review-packet/
+          else
+            echo "Warning: specs directory does not exist."
+          fi
           cp README.md review-packet/ 2>/dev/null || true
           cp frontend/README.md review-packet/frontend-README.md 2>/dev/null || true
 
