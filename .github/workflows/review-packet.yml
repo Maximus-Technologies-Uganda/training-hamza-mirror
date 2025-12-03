@@ -421,7 +421,7 @@ jobs:
       - name: Upload Review Packet
         uses: actions/upload-artifact@v4
         with:
-          name: review-packet-${{ github.ref_name }}-${{ github.run_number }}
+          name: review-packet-${{ github.run_id }}-${{ github.run_number }}
           path: review-packet/
           retention-days: 30
 
