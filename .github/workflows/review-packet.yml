@@ -140,16 +140,18 @@ jobs:
 
       - name: Start servers for E2E tests
         run: |
-          # Start API server
-          node src/blog/server.js &
+          # Start API server on port 3000
+          PORT=3000 node src/blog/server.js &
           echo $! > /tmp/api-server.pid
           sleep 3
-          # Start frontend
+          # Start frontend on port 5000 (configured in package.json)
           cd frontend && npm run build && npm run start &
           echo $! > /tmp/frontend-server.pid
           sleep 5
         env:
+          PORT: '3000'
           NEXT_PUBLIC_API_URL: http://localhost:3000
+          PLAYWRIGHT_BASE_URL: http://localhost:5000
         continue-on-error: true
 
       - name: Run Playwright E2E tests (captures screenshots)
@@ -158,20 +160,27 @@ jobs:
         continue-on-error: true
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
+          PLAYWRIGHT_BASE_URL: http://localhost:5000
 
       - name: Run Playwright a11y smoke tests
         run: npx playwright test --grep @a11y --project=chromium 2>&1 | tee ../review-packet/a11y-test-output.txt || true
         working-directory: frontend
         continue-on-error: true
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+          PLAYWRIGHT_BASE_URL: http://localhost:5000
 
       - name: Capture UI state screenshots
         run: |
-          # Capture screenshots using Playwright
-          npx playwright test --grep "screenshot" --project=chromium || true
+          # Capture screenshots using Playwright (run from frontend directory)
+          cd frontend && npx playwright test --grep "screenshot" --project=chromium || true
           # Copy any generated screenshots
           cp -r frontend/test-results/* review-packet/screenshots/ 2>/dev/null || true
           cp -r frontend/playwright-report review-packet/ 2>/dev/null || true
         continue-on-error: true
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+          PLAYWRIGHT_BASE_URL: http://localhost:5000
 
       - name: Stop servers
         run: |
