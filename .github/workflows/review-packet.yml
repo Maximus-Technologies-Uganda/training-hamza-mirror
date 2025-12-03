@@ -54,7 +54,9 @@ jobs:
         continue-on-error: true
 
       - name: Copy backend coverage
-        run: cp -r coverage/* review-packet/coverage/backend/ 2>/dev/null || mkdir -p review-packet/coverage/backend
+        run: |
+          mkdir -p review-packet/coverage/backend
+          cp -r coverage/* review-packet/coverage/backend/ 2>/dev/null || true
         continue-on-error: true
 
       # ========================================
@@ -100,7 +102,8 @@ jobs:
               const passed = total.statements.pct >= 50;
               console.log('**Status**: ' + (passed ? '✅ Coverage threshold met' : '⚠️ Coverage below 50%'));
             " >> review-packet/coverage-summary.md
-            cp -r frontend/coverage/* review-packet/coverage/frontend/ 2>/dev/null || mkdir -p review-packet/coverage/frontend
+            mkdir -p review-packet/coverage/frontend
+            cp -r frontend/coverage/* review-packet/coverage/frontend/ 2>/dev/null || true
           else
             echo "⚠️ Frontend coverage data not available" >> review-packet/coverage-summary.md
           fi
@@ -274,7 +277,7 @@ jobs:
       # ========================================
       - name: Create Frontend Review Packet Summary
         run: |
-          cat << 'EOF' > review-packet/FRONTEND_REVIEW_PACKET.md
+          cat << EOF > review-packet/FRONTEND_REVIEW_PACKET.md
           # Frontend Review Packet
           
           **Branch**: $(git branch --show-current)
@@ -295,9 +298,9 @@ jobs:
           ## ✅ Quality Gates Checklist
           
           ### Next.js Quality Bars
-          - [ ] `next build` passes with no React/Next warnings
+          - [ ] \`next build\` passes with no React/Next warnings
           - [ ] TypeScript type-check passes with no errors
-          - [ ] `NEXT_PUBLIC_API_URL` is documented and used
+          - [ ] \`NEXT_PUBLIC_API_URL\` is documented and used
           - [ ] URLs remain shareable via searchParams
           
           ### Functionality
@@ -310,7 +313,7 @@ jobs:
           ### A11y Requirements
           - [ ] Labeled controls (all form inputs have labels)
           - [ ] Predictable focus after actions
-          - [ ] `aria-live` or `role="status"` for dynamic messages
+          - [ ] \`aria-live\` or \`role="status"\` for dynamic messages
           - [ ] Playwright a11y smoke tests pass
           
           ### Coverage Requirements
