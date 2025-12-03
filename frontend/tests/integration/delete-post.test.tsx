@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import type { Post } from '@/lib/types';
@@ -171,20 +171,43 @@ describe('Delete Post Workflow Integration', () => {
       await waitFor(() => {
         expect(onDelete).toHaveBeenCalled();
       });
+      
+      // Wait for component state updates to complete (modal closes on success)
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
     });
 
     it('shows loading state during deletion', async () => {
       const user = userEvent.setup();
-      // Make the delete hang
-      const onDelete = jest.fn((): Promise<void> => new Promise(() => {}));
+      // Make the delete hang - use a promise that never resolves
+      let resolveDelete: () => void;
+      const deletePromise = new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      });
+      const onDelete = jest.fn().mockReturnValue(deletePromise);
       render(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
       
-      // Note: This test assumes the PostDetail handles loading state
-      // The implementation will show a loading indicator
+      // Verify loading state
+      await waitFor(() => {
+        expect(onDelete).toHaveBeenCalled();
+      });
+      
+      // Cleanup: resolve the promise and wait for all state updates
+      await act(async () => {
+        resolveDelete!();
+        // Wait for the promise chain to complete
+        await Promise.resolve();
+      });
+      
+      // Wait for the modal to close (component state to settle)
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
     });
 
     it('redirects to homepage after successful deletion', async () => {
@@ -196,8 +219,10 @@ describe('Delete Post Workflow Integration', () => {
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
       
+      // Wait for component state updates to complete (modal closes on success)
       await waitFor(() => {
         expect(onDelete).toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
     });
 
@@ -210,8 +235,10 @@ describe('Delete Post Workflow Integration', () => {
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
       
+      // Wait for component state updates to complete (modal closes on success)
       await waitFor(() => {
         expect(onDelete).toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
     });
   });
@@ -229,8 +256,10 @@ describe('Delete Post Workflow Integration', () => {
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
       
+      // Wait for the error state to settle (error message shown and button changes to "Try Again")
       await waitFor(() => {
         expect(onDelete).toHaveBeenCalled();
+        expect(within(dialog).getByRole('button', { name: /try again/i })).toBeInTheDocument();
       });
     });
 
@@ -246,8 +275,10 @@ describe('Delete Post Workflow Integration', () => {
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
       
+      // Wait for the error state to settle
       await waitFor(() => {
         expect(onDelete).toHaveBeenCalled();
+        expect(within(dialog).getByRole('button', { name: /try again/i })).toBeInTheDocument();
       });
     });
 
@@ -263,8 +294,10 @@ describe('Delete Post Workflow Integration', () => {
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
       
+      // Wait for the error state to settle
       await waitFor(() => {
         expect(onDelete).toHaveBeenCalled();
+        expect(within(dialog).getByRole('button', { name: /try again/i })).toBeInTheDocument();
       });
     });
 
@@ -283,8 +316,10 @@ describe('Delete Post Workflow Integration', () => {
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
       
+      // Wait for the error state to settle (button becomes "Try Again")
       await waitFor(() => {
         expect(onDelete).toHaveBeenCalledTimes(1);
+        expect(within(dialog).getByRole('button', { name: /try again/i })).toBeInTheDocument();
       });
     });
 

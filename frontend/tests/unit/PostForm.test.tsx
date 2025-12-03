@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import PostForm from '@/components/PostForm';
@@ -131,10 +131,11 @@ describe('PostForm', () => {
       render(<PostForm />);
 
       const titleInput = screen.getByLabelText(/title/i);
-      await user.type(titleInput, 'A'.repeat(201));
+      // Use fireEvent for long strings to avoid userEvent timeout
+      fireEvent.change(titleInput, { target: { value: 'A'.repeat(201) } });
 
       const bodyTextarea = screen.getByLabelText(/body/i);
-      await user.type(bodyTextarea, 'Valid body');
+      fireEvent.change(bodyTextarea, { target: { value: 'Valid body' } });
 
       const submitButton = screen.getByRole('button', { name: /create post/i });
       await user.click(submitButton);
@@ -150,10 +151,10 @@ describe('PostForm', () => {
       render(<PostForm />);
 
       const titleInput = screen.getByLabelText(/title/i);
-      await user.type(titleInput, '   ');
+      fireEvent.change(titleInput, { target: { value: '   ' } });
 
       const bodyTextarea = screen.getByLabelText(/body/i);
-      await user.type(bodyTextarea, 'Valid body content');
+      fireEvent.change(bodyTextarea, { target: { value: 'Valid body content' } });
 
       const submitButton = screen.getByRole('button', { name: /create post/i });
       await user.click(submitButton);
@@ -248,14 +249,16 @@ describe('PostForm', () => {
         expect(submitButton).toBeDisabled();
       });
 
-      // Resolve the promise to clean up
-      resolvePromise!({
-        id: 1,
-        title: 'Test Post',
-        slug: 'test-post',
-        body: 'Test content',
-        createdAt: '2025-11-27T10:00:00Z',
-        updatedAt: '2025-11-27T10:00:00Z',
+      // Resolve the promise and wait for state updates to complete
+      await act(async () => {
+        resolvePromise!({
+          id: 1,
+          title: 'Test Post',
+          slug: 'test-post',
+          body: 'Test content',
+          createdAt: '2025-11-27T10:00:00Z',
+          updatedAt: '2025-11-27T10:00:00Z',
+        });
       });
     });
 
@@ -282,14 +285,16 @@ describe('PostForm', () => {
         expect(screen.getByRole('button', { name: /creating/i })).toBeInTheDocument();
       });
 
-      // Resolve to clean up
-      resolvePromise!({
-        id: 1,
-        title: 'Test Post',
-        slug: 'test-post',
-        body: 'Test content',
-        createdAt: '2025-11-27T10:00:00Z',
-        updatedAt: '2025-11-27T10:00:00Z',
+      // Resolve and wait for state updates to complete
+      await act(async () => {
+        resolvePromise!({
+          id: 1,
+          title: 'Test Post',
+          slug: 'test-post',
+          body: 'Test content',
+          createdAt: '2025-11-27T10:00:00Z',
+          updatedAt: '2025-11-27T10:00:00Z',
+        });
       });
     });
   });
@@ -399,10 +404,12 @@ describe('PostForm', () => {
         expect(screen.getByRole('button', { name: /updating/i })).toBeInTheDocument();
       });
 
-      // Resolve to clean up
-      resolvePromise!({
-        ...existingPost,
-        title: 'Updated',
+      // Resolve and wait for state updates to complete
+      await act(async () => {
+        resolvePromise!({
+          ...existingPost,
+          title: 'Updated',
+        });
       });
     });
 
