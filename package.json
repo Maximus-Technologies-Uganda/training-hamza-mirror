@@ -6,6 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest --watch",
+    "test:contract": "vitest run tests/blog/contract",
     "test:postman": "newman run docs/blog-posts-api.postman_collection.json --env-var baseUrl=http://localhost:3000",
     "dev": "node src/blog/server.js",
     "start": "NODE_ENV=production node src/blog/server.js"
