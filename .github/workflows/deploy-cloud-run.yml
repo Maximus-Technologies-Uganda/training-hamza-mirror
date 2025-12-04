@@ -1,0 +1,243 @@
+# =============================================================================
+# GitHub Actions Workflow: Deploy Blog API to Cloud Run
+# =============================================================================
+# This workflow builds and deploys the Blog Posts API to Google Cloud Run
+# using Workload Identity Federation (WIF) for secure authentication.
+#
+# Prerequisites:
+# 1. Terraform infrastructure must be applied first
+# 2. GitHub repository variables must be configured (see terraform outputs)
+#
+# Triggers:
+# - Push to main/development branch with backend changes
+# - Manual workflow dispatch
+# =============================================================================
+
+name: Deploy Blog API to Cloud Run
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'src/blog/**'
+      - 'package*.json'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-cloud-run.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # These should match your terraform outputs
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_SERVICE_NAME: ${{ vars.GCP_SERVICE_NAME }}
+  GCP_ARTIFACT_REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
+
+jobs:
+  # ==========================================================================
+  # Job 1: Run Tests
+  # ==========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests
+        run: npm test
+      
+      - name: Start Blog API Server
+        run: npm run dev &
+        env:
+          NODE_ENV: test
+      
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000/health -t 60000
+      
+      - name: Run contract tests
+        run: npx newman run docs/blog-posts-api.postman_collection.json --env-var baseUrl=http://localhost:3000
+
+  # ==========================================================================
+  # Job 2: Build and Push Docker Image
+  # ==========================================================================
+  build:
+    name: Build & Push Image
+    needs: test
+    runs-on: ubuntu-latest
+    
+    # Required permissions for Workload Identity Federation
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Authenticate to Google Cloud using Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+      
+      # Configure Docker to push to Artifact Registry
+      - name: Configure Docker for Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+      
+      # Set up Docker Buildx for better build performance
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      # Generate image metadata (tags, labels)
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+      
+      # Build and push Docker image
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+      
+      - name: Output image info
+        run: |
+          echo "## Docker Image Built Successfully! 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ steps.meta.outputs.tags }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Job 3: Deploy to Cloud Run
+  # ==========================================================================
+  deploy:
+    name: Deploy to Cloud Run
+    needs: build
+    runs-on: ubuntu-latest
+    
+    # Required permissions for Workload Identity Federation
+    permissions:
+      contents: read
+      id-token: write
+    
+    environment:
+      name: ${{ github.event.inputs.environment || 'dev' }}
+      url: ${{ steps.deploy.outputs.url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Authenticate to Google Cloud using Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      
+      # Set up Google Cloud SDK
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+      
+      # Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.GCP_SERVICE_NAME }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api:${{ github.sha }}
+          flags: |
+            --allow-unauthenticated
+            --cpu=1
+            --memory=512Mi
+            --min-instances=0
+            --max-instances=10
+            --port=8080
+            --set-env-vars=NODE_ENV=production,PORT=8080,STORAGE_TYPE=sqlite,SQLITE_DB_PATH=/app/data/blog.db
+      
+      # Verify deployment
+      - name: Verify deployment
+        run: |
+          echo "Waiting for service to be ready..."
+          sleep 10
+          
+          HEALTH_URL="${{ steps.deploy.outputs.url }}/health"
+          echo "Checking health endpoint: $HEALTH_URL"
+          
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Health check passed (HTTP $HTTP_STATUS)"
+          else
+            echo "❌ Health check failed (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+      
+      - name: Output deployment info
+        run: |
+          echo "## Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service URL:** ${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### API Endpoints" >> $GITHUB_STEP_SUMMARY
+          echo "- Health: ${{ steps.deploy.outputs.url }}/health" >> $GITHUB_STEP_SUMMARY
+          echo "- Posts: ${{ steps.deploy.outputs.url }}/api/posts" >> $GITHUB_STEP_SUMMARY
+          echo "- Docs: ${{ steps.deploy.outputs.url }}/docs" >> $GITHUB_STEP_SUMMARY
