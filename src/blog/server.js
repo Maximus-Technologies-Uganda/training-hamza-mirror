@@ -24,14 +24,31 @@ const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const STORAGE_TYPE = process.env.STORAGE_TYPE || (NODE_ENV === 'production' ? 'sqlite' : 'memory');
 const SQLITE_DB_PATH = process.env.SQLITE_DB_PATH || './data/blog.db';
+const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+const FIRESTORE_COLLECTION = process.env.FIRESTORE_COLLECTION || 'posts';
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
 const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10); // 1 minute default
+
+// Trust proxy headers only when explicitly enabled or running on Cloud Run (K_SERVICE is set by Cloud Run)
+// SECURITY: Do not enable in untrusted environments - attackers can spoof X-Forwarded-For to bypass rate limiting
+const TRUST_PROXY = process.env.TRUST_PROXY === 'true' || !!process.env.K_SERVICE;
 
 /**
  * Create storage adapter based on configuration
  * Uses dynamic import for SQLite to avoid loading native module when not needed
  */
 async function createStorage() {
+  if (STORAGE_TYPE === 'firestore') {
+    if (!GCP_PROJECT_ID) {
+      throw new Error('GCP_PROJECT_ID is required when using Firestore storage');
+    }
+    const { FirestoreStorage } = await import('./storage/firestore-storage.js');
+    return new FirestoreStorage({
+      projectId: GCP_PROJECT_ID,
+      collection: FIRESTORE_COLLECTION
+    });
+  }
+
   if (STORAGE_TYPE === 'sqlite') {
     const { SQLiteStorage } = await import('./storage/sqlite-storage.js');
     return new SQLiteStorage(SQLITE_DB_PATH);
@@ -44,6 +61,10 @@ async function createStorage() {
  */
 export async function createServer(options = {}) {
   const fastify = Fastify({
+    // Trust proxy headers (X-Forwarded-For) only when behind a trusted proxy like Cloud Run
+    // SECURITY: Disabled by default to prevent X-Forwarded-For spoofing attacks on rate limiting
+    // Enable via TRUST_PROXY=true env var or automatically on Cloud Run (K_SERVICE detected)
+    trustProxy: TRUST_PROXY,
     logger: NODE_ENV === 'production' ? {
       level: 'info',
       serializers: {

@@ -2,15 +2,9 @@ name: Generate Review Packet
 
 on:
   workflow_dispatch:  # Manual trigger
-  pull_request:
-    branches:
-      - main
-      - development
   push:
     branches:
-      - 'feat/**'
-      - 'fix/**'
-      - 'chore/**'
+      - development
     paths:
       - 'docs/review-packet-*.md'
       - 'frontend/**'
@@ -82,6 +76,18 @@ jobs:
         working-directory: frontend
         continue-on-error: true
 
+      - name: Debug frontend coverage files
+        run: |
+          echo "=== Checking frontend coverage directory ==="
+          ls -la frontend/coverage/ 2>/dev/null || echo "frontend/coverage/ does not exist"
+          echo ""
+          echo "=== Looking for coverage-summary.json ==="
+          find frontend -name "coverage-summary.json" 2>/dev/null || echo "No coverage-summary.json found"
+          echo ""
+          echo "=== Coverage directory contents ==="
+          find frontend/coverage -type f 2>/dev/null | head -20 || echo "No coverage files found"
+        continue-on-error: true
+
       - name: Generate frontend coverage summary
         run: |
           echo "## Frontend Coverage Summary" > review-packet/coverage-summary.md
@@ -146,16 +152,46 @@ jobs:
           # Start API server on port 3000
           PORT=3000 node src/blog/server.js &
           echo $! > /tmp/api-server.pid
-          sleep 3
-          # Start frontend on port 5000 (configured in package.json)
-          cd frontend && npm run build && npm run start &
+          
+          # Wait for API server to be ready (max 30 seconds)
+          echo "Waiting for API server on port 3000..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3000/api/posts > /dev/null 2>&1; then
+              echo "✅ API server is ready"
+              break
+            fi
+            echo "  Attempt $i: API server not ready yet..."
+            sleep 1
+          done
+          
+          # Start frontend on port 5000 (using production build)
+          cd frontend
+          npm run build
+          npm run start &
           echo $! > /tmp/frontend-server.pid
-          sleep 5
+          cd ..
+          
+          # Wait for frontend server to be ready (max 60 seconds)
+          echo "Waiting for frontend server on port 5000..."
+          for i in {1..60}; do
+            if curl -s http://localhost:5000 > /dev/null 2>&1; then
+              echo "✅ Frontend server is ready"
+              break
+            fi
+            echo "  Attempt $i: Frontend server not ready yet..."
+            sleep 1
+          done
+          
+          # Final verification
+          echo ""
+          echo "=== Server Status ==="
+          curl -s http://localhost:3000/api/posts > /dev/null 2>&1 && echo "✅ API server (3000): Running" || echo "❌ API server (3000): Not responding"
+          curl -s http://localhost:5000 > /dev/null 2>&1 && echo "✅ Frontend server (5000): Running" || echo "❌ Frontend server (5000): Not responding"
         env:
           PORT: '3000'
           NEXT_PUBLIC_API_URL: http://localhost:3000
           PLAYWRIGHT_BASE_URL: http://localhost:5000
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Run Playwright E2E tests (captures screenshots)
         run: npx playwright test --project=chromium 2>&1 | tee ../review-packet/playwright-output.txt || true

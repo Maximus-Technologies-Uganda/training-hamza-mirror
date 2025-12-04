@@ -46,10 +46,13 @@ export class MemoryStorage extends StorageAdapter {
 
   /**
    * Retrieve all posts
-   * @returns {Promise<Array>} Array of all posts
+   * @returns {Promise<Array>} Array of all posts sorted by createdAt DESC (newest first)
    */
   async getAllPosts() {
-    return Array.from(this.posts.values());
+    return Array.from(this.posts.values()).sort((a, b) => {
+      // Sort by createdAt descending (newest first) for consistency across all storage adapters
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
   }
 
   /**
