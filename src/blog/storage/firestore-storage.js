@@ -181,14 +181,6 @@ export class FirestoreStorage extends StorageAdapter {
 
   async createPost(postData) {
     const slug = postData.slug ?? generateSlug(postData.title);
-
-    const existing = await this.findBySlug(slug);
-    if (existing) {
-      const error = new Error('UNIQUE constraint failed: posts.slug');
-      error.code = 'SQLITE_CONSTRAINT_UNIQUE';
-      throw error;
-    }
-
     const now = new Date().toISOString();
     const nextId = await this.getNextId();
     const post = {
@@ -200,12 +192,50 @@ export class FirestoreStorage extends StorageAdapter {
       updatedAt: now
     };
 
-    const url = `${this.baseUrl}?documentId=${nextId}`;
-    const response = await this.authorizedFetch(url, {
-      method: 'POST',
-      body: JSON.stringify(this.toFirestoreDocument(post))
-    });
-    return this.fromFirestoreDocument(response);
+    // Use slug as the document ID to enforce uniqueness atomically.
+    // The precondition currentDocument.exists=false ensures the create fails
+    // if a document with this slug already exists, preventing race conditions.
+    const slugDocUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/slugs/${encodeURIComponent(slug)}?currentDocument.exists=false`;
+    
+    try {
+      // First, atomically reserve the slug by creating a slug document
+      await this.authorizedFetch(slugDocUrl, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          fields: {
+            postId: { integerValue: String(nextId) },
+            createdAt: { stringValue: now }
+          }
+        })
+      });
+    } catch (err) {
+      // 409 Conflict means the slug document already exists (duplicate slug)
+      if (err.code === 409) {
+        const error = new Error('UNIQUE constraint failed: posts.slug');
+        error.code = 'SQLITE_CONSTRAINT_UNIQUE';
+        throw error;
+      }
+      throw err;
+    }
+
+    // Slug reserved successfully, now create the actual post document
+    try {
+      const url = `${this.baseUrl}?documentId=${nextId}`;
+      const response = await this.authorizedFetch(url, {
+        method: 'POST',
+        body: JSON.stringify(this.toFirestoreDocument(post))
+      });
+      return this.fromFirestoreDocument(response);
+    } catch (err) {
+      // If post creation fails, clean up the slug reservation
+      const cleanupUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/slugs/${encodeURIComponent(slug)}`;
+      try {
+        await this.authorizedFetch(cleanupUrl, { method: 'DELETE', allowNotFound: true });
+      } catch {
+        // Best effort cleanup, ignore errors
+      }
+      throw err;
+    }
   }
 
   async getAllPosts() {
@@ -247,12 +277,37 @@ export class FirestoreStorage extends StorageAdapter {
       ? updates.slug
       : (updates.title !== undefined ? generateSlug(updates.title) : currentPost.slug);
 
+    // If slug is changing, atomically reserve the new slug
     if (nextSlug !== currentPost.slug) {
-      const existing = await this.findBySlug(nextSlug);
-      if (existing && existing.id !== id) {
-        const error = new Error('UNIQUE constraint failed: posts.slug');
-        error.code = 'SQLITE_CONSTRAINT_UNIQUE';
-        throw error;
+      const slugDocUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/slugs/${encodeURIComponent(nextSlug)}?currentDocument.exists=false`;
+      
+      try {
+        // Atomically reserve the new slug
+        await this.authorizedFetch(slugDocUrl, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            fields: {
+              postId: { integerValue: String(id) },
+              createdAt: { stringValue: new Date().toISOString() }
+            }
+          })
+        });
+      } catch (err) {
+        // 409 Conflict means the slug document already exists (duplicate slug)
+        if (err.code === 409) {
+          const error = new Error('UNIQUE constraint failed: posts.slug');
+          error.code = 'SQLITE_CONSTRAINT_UNIQUE';
+          throw error;
+        }
+        throw err;
+      }
+
+      // Delete the old slug document
+      const oldSlugUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/slugs/${encodeURIComponent(currentPost.slug)}`;
+      try {
+        await this.authorizedFetch(oldSlugUrl, { method: 'DELETE', allowNotFound: true });
+      } catch {
+        // Best effort cleanup, ignore errors
       }
     }
 
@@ -275,10 +330,26 @@ export class FirestoreStorage extends StorageAdapter {
 
   async deletePost(id) {
     const url = `${this.baseUrl}/${id}`;
-    const deleted = await this.authorizedFetch(url, { method: 'DELETE', allowNotFound: true });
-    if (deleted === null) {
+    
+    // First get the post to find its slug
+    const currentDoc = await this.authorizedFetch(url, { allowNotFound: true });
+    if (!currentDoc) {
       return false;
     }
+
+    const currentPost = this.fromFirestoreDocument(currentDoc);
+    
+    // Delete the post document
+    await this.authorizedFetch(url, { method: 'DELETE', allowNotFound: true });
+    
+    // Clean up the slug document
+    const slugUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/slugs/${encodeURIComponent(currentPost.slug)}`;
+    try {
+      await this.authorizedFetch(slugUrl, { method: 'DELETE', allowNotFound: true });
+    } catch {
+      // Best effort cleanup, ignore errors
+    }
+    
     return true;
   }
 }
