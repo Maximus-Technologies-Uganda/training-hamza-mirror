@@ -11,17 +11,41 @@ import { generateSlug } from '../services/slug-generator.js';
 // Firestore REST endpoints
 const METADATA_TOKEN_URL = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token';
 
+// Timeout for metadata server requests (5 seconds) - fail fast if not running on GCP
+const METADATA_TIMEOUT_MS = parseInt(process.env.FIRESTORE_METADATA_TIMEOUT_MS || '5000', 10);
+
+/**
+ * Fetch access token from GCP metadata server with timeout.
+ * Fails fast with AbortController if metadata server is unreachable (e.g., running outside GCP).
+ */
 async function fetchAccessToken() {
-  const response = await fetch(METADATA_TOKEN_URL, {
-    headers: { 'Metadata-Flavor': 'Google' }
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), METADATA_TIMEOUT_MS);
 
-  if (!response.ok) {
-    throw new Error(`Failed to retrieve access token: ${response.statusText}`);
+  try {
+    const response = await fetch(METADATA_TOKEN_URL, {
+      headers: { 'Metadata-Flavor': 'Google' },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to retrieve access token: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return { token: data.access_token, expiresAt: Date.now() + (data.expires_in * 1000) - 60000 };
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(
+        `Metadata server timeout after ${METADATA_TIMEOUT_MS}ms. ` +
+        'Firestore storage requires running on GCP with Workload Identity, ' +
+        'or set STORAGE_TYPE to "memory" or "sqlite" for local development.'
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const data = await response.json();
-  return { token: data.access_token, expiresAt: Date.now() + (data.expires_in * 1000) - 60000 };
 }
 
 export class FirestoreStorage extends StorageAdapter {
@@ -43,7 +67,7 @@ export class FirestoreStorage extends StorageAdapter {
       this.tokenCache = await fetchAccessToken();
     }
 
-    const { query, allowNotFound = false, ...rest } = options;
+    const { query, allowNotFound = false, timeout = 30000, ...rest } = options;
     const queryString = query && Array.isArray(query) && query.length > 0
       ? `?${query.map(q => `updateMask.fieldPaths=${encodeURIComponent(q)}`).join('&')}`
       : '';
@@ -55,7 +79,21 @@ export class FirestoreStorage extends StorageAdapter {
       ...(options.headers || {})
     };
 
-    const response = await fetch(requestUrl, { ...rest, headers });
+    // Add timeout via AbortController to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    let response;
+    try {
+      response = await fetch(requestUrl, { ...rest, headers, signal: controller.signal });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error(`Firestore request timeout after ${timeout}ms: ${url}`);
+      }
+      throw error;
+    }
+    clearTimeout(timeoutId);
     if (response.status === 404 && allowNotFound) {
       return null;
     }
@@ -243,8 +281,8 @@ export class FirestoreStorage extends StorageAdapter {
       structuredQuery: {
         from: [{ collectionId: this.collection }],
         orderBy: [{
-          field: { fieldPath: 'id' },
-          direction: 'ASCENDING'
+          field: { fieldPath: 'createdAt' },
+          direction: 'DESCENDING'
         }]
       }
     };
