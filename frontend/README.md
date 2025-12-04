@@ -2,6 +2,50 @@
 
 A responsive web frontend for the Blog Posts API built with Next.js, TypeScript, and Tailwind CSS. This application provides full CRUD functionality for blog posts with comprehensive error handling and WCAG 2.1 AA accessibility compliance.
 
+## 🚀 Live Demo
+
+**Live URL**: [https://maximus-technologies-uganda.github.io/training-hamza/](https://maximus-technologies-uganda.github.io/training-hamza/)
+
+> **Note**: The live demo requires a running Blog API backend. See the [Run & Try](#run--try) section for setup instructions.
+
+## Run & Try
+
+### Environment Variables
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `NEXT_PUBLIC_API_URL` | Yes | Base URL of the Blog Posts API | `http://localhost:3001` |
+
+### Quick Setup
+
+1. **Clone and install**:
+   ```bash
+   git clone https://github.com/Maximus-Technologies-Uganda/training-hamza.git
+   cd training-hamza/frontend
+   npm install
+   ```
+
+2. **Configure environment** - Create `.env.local`:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:3001
+   ```
+
+3. **Start the API** (in a separate terminal from repo root):
+   ```bash
+   npm run blog:dev
+   ```
+
+4. **Start the frontend**:
+   ```bash
+   npm run dev
+   ```
+
+5. **Open** [http://localhost:5000](http://localhost:5000) in your browser
+
+### Production Deployment
+
+For GitHub Pages deployment, set the `NEXT_PUBLIC_API_URL` repository variable in GitHub Actions to point to your production API server.
+
 ## Features
 
 - **View All Posts** - Browse a list of all published blog posts with titles, dates, and excerpts

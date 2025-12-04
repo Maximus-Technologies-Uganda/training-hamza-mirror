@@ -54,7 +54,7 @@ ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOST=0.0.0.0
 ENV STORAGE_TYPE=sqlite
-ENV SQLITE_DB_PATH=/app/data/blog.db
+ENV FIRESTORE_COLLECTION=posts
 
 # Cloud Run expects port 8080
 EXPOSE 8080

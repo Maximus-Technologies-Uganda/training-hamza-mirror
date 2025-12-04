@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: 'Deployment environment (matches Terraform workspace/environment suffix)'
         required: true
         default: 'dev'
         type: choice
@@ -33,10 +33,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  DEPLOY_ENV: ${{ github.event.inputs.environment || 'dev' }}
+  IMAGE_TAG: ${{ github.event.inputs.environment || 'dev' }}-${{ github.sha }}
   # These should match your terraform outputs
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GCP_REGION: ${{ vars.GCP_REGION }}
-  GCP_SERVICE_NAME: ${{ vars.GCP_SERVICE_NAME }}
+  GCP_SERVICE_NAME: blog-api-${{ github.event.inputs.environment || 'dev' }}
   GCP_ARTIFACT_REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
 
 jobs:
@@ -91,7 +93,7 @@ jobs:
       id-token: write
     
     outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
+      image_tag: ${{ env.IMAGE_TAG }}
       image_digest: ${{ steps.build.outputs.digest }}
     
     steps:
@@ -126,7 +128,7 @@ jobs:
         with:
           images: ${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api
           tags: |
-            type=sha,prefix=
+            type=raw,value=${{ env.IMAGE_TAG }}
             type=ref,event=branch
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
       
@@ -165,7 +167,7 @@ jobs:
       id-token: write
     
     environment:
-      name: ${{ github.event.inputs.environment || 'dev' }}
+      name: ${{ env.DEPLOY_ENV }}
       url: ${{ steps.deploy.outputs.url }}
     
     steps:
@@ -193,15 +195,9 @@ jobs:
         with:
           service: ${{ env.GCP_SERVICE_NAME }}
           region: ${{ env.GCP_REGION }}
-          image: ${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api:${{ github.sha }}
+          image: ${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api:${{ env.IMAGE_TAG }}
           flags: |
-            --allow-unauthenticated
-            --cpu=1
-            --memory=512Mi
-            --min-instances=0
-            --max-instances=10
-            --port=8080
-            --set-env-vars=NODE_ENV=production,PORT=8080,STORAGE_TYPE=sqlite,SQLITE_DB_PATH=/app/data/blog.db
+            --no-allow-unauthenticated
       
       # Verify deployment
       - name: Verify deployment
@@ -212,7 +208,10 @@ jobs:
           HEALTH_URL="${{ steps.deploy.outputs.url }}/health"
           echo "Checking health endpoint: $HEALTH_URL"
           
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
+          # Get identity token for authenticated request to private Cloud Run service
+          ID_TOKEN=$(gcloud auth print-identity-token --audiences="${{ steps.deploy.outputs.url }}")
+          
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $ID_TOKEN" "$HEALTH_URL")
           
           if [ "$HTTP_STATUS" -eq 200 ]; then
             echo "✅ Health check passed (HTTP $HTTP_STATUS)"
@@ -227,7 +226,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service URL:** ${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
           echo "**Region:** ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.GCP_ARTIFACT_REGISTRY }}/blog-api:${{ env.IMAGE_TAG }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### API Endpoints" >> $GITHUB_STEP_SUMMARY
           echo "- Health: ${{ steps.deploy.outputs.url }}/health" >> $GITHUB_STEP_SUMMARY

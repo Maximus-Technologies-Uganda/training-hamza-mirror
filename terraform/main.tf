@@ -102,6 +102,7 @@ resource "google_project_service" "apis" {
     "iamcredentials.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "secretmanager.googleapis.com",
+    "firestore.googleapis.com",
   ])
 
   project            = var.project_id
@@ -211,6 +212,13 @@ resource "google_service_account" "cloud_run" {
   description  = "Service account for Blog API Cloud Run service runtime"
 }
 
+# Allow Cloud Run service to access Firestore (Datastore mode)
+resource "google_project_iam_member" "cloud_run_firestore_user" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
 # NOTE: Secret Manager access for Cloud Run is commented out until secrets are needed
 # resource "google_project_iam_member" "cloud_run_secret_accessor" {
 #   project = var.project_id
@@ -276,12 +284,17 @@ resource "google_cloud_run_v2_service" "blog_api" {
       
       env {
         name  = "STORAGE_TYPE"
-        value = "sqlite"
+        value = "firestore"
       }
-      
+
       env {
-        name  = "SQLITE_DB_PATH"
-        value = "/app/data/blog.db"
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
+        name  = "FIRESTORE_COLLECTION"
+        value = "posts"
       }
 
       # Health check
