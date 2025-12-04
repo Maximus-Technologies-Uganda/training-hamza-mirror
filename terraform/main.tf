@@ -111,6 +111,25 @@ resource "google_project_service" "apis" {
 }
 
 # =============================================================================
+# Firestore Database
+# =============================================================================
+# Creates the (default) Firestore database in Native mode for the Blog API.
+# Note: A project can only have one (default) database. If you already have
+# a Firestore database in this project, you may need to import it or use a
+# named database instead.
+resource "google_firestore_database" "default" {
+  project     = var.project_id
+  name        = "(default)"
+  location_id = var.region
+  type        = "FIRESTORE_NATIVE"
+
+  # Prevents accidental deletion of the database
+  deletion_policy = "DELETE"
+
+  depends_on = [google_project_service.apis]
+}
+
+# =============================================================================
 # Artifact Registry - Docker Repository
 # =============================================================================
 resource "google_artifact_registry_repository" "docker_repo" {
@@ -329,7 +348,8 @@ resource "google_cloud_run_v2_service" "blog_api" {
 
   depends_on = [
     google_project_service.apis,
-    google_artifact_registry_repository.docker_repo
+    google_artifact_registry_repository.docker_repo,
+    google_firestore_database.default
   ]
 
   lifecycle {
