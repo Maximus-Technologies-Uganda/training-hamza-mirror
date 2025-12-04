@@ -119,25 +119,64 @@ export class FirestoreStorage extends StorageAdapter {
   }
 
   async getNextId() {
-    const queryBody = {
-      structuredQuery: {
-        from: [{ collectionId: this.collection }],
-        orderBy: [{
-          field: { fieldPath: 'id' },
-          direction: 'DESCENDING'
-        }],
-        limit: 1
+    // Use a counter document with optimistic locking for atomic ID generation
+    const counterUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/counters/posts`;
+    
+    const maxRetries = 5;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Try to read the current counter
+        const counterDoc = await this.authorizedFetch(counterUrl, { allowNotFound: true });
+        
+        if (!counterDoc) {
+          // Counter doesn't exist, create it with ID 1
+          // Use currentDocument.exists=false precondition to ensure atomicity
+          const createUrl = `${counterUrl}?currentDocument.exists=false`;
+          try {
+            await this.authorizedFetch(createUrl, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                fields: {
+                  nextId: { integerValue: '2' }
+                }
+              })
+            });
+            return 1;
+          } catch (err) {
+            // Another request created it first, retry
+            if (err.code === 409) continue;
+            throw err;
+          }
+        }
+        
+        // Counter exists, increment it atomically using updateTime precondition
+        const currentNextId = parseInt(counterDoc.fields?.nextId?.integerValue ?? '1', 10);
+        const updateTime = counterDoc.updateTime;
+        const updateUrl = `${counterUrl}?currentDocument.updateTime=${encodeURIComponent(updateTime)}`;
+        
+        try {
+          await this.authorizedFetch(updateUrl, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              fields: {
+                nextId: { integerValue: String(currentNextId + 1) }
+              }
+            })
+          });
+          return currentNextId;
+        } catch (err) {
+          // Concurrent modification, retry
+          if (err.code === 409) continue;
+          throw err;
+        }
+      } catch (err) {
+        if (attempt === maxRetries - 1) throw err;
+        // Small backoff before retry
+        await new Promise(resolve => setTimeout(resolve, 10 * (attempt + 1)));
       }
-    };
-
-    const url = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents:runQuery`;
-    const response = await this.authorizedFetch(url, { method: 'POST', body: JSON.stringify(queryBody) });
-    const match = response.find(r => r.document)?.document;
-    if (!match) {
-      return 1;
     }
-    const currentMax = this.fromFirestoreDocument(match).id || 0;
-    return currentMax + 1;
+    
+    throw new Error('Failed to generate unique ID after maximum retries');
   }
 
   async createPost(postData) {
