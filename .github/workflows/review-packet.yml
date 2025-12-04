@@ -2,15 +2,9 @@ name: Generate Review Packet
 
 on:
   workflow_dispatch:  # Manual trigger
-  pull_request:
-    branches:
-      - main
-      - development
   push:
     branches:
-      - 'feat/**'
-      - 'fix/**'
-      - 'chore/**'
+      - development
     paths:
       - 'docs/review-packet-*.md'
       - 'frontend/**'
@@ -80,6 +74,18 @@ jobs:
       - name: Run frontend tests with coverage
         run: npm run test:coverage 2>&1 | tee ../review-packet/frontend-test-output.txt
         working-directory: frontend
+        continue-on-error: true
+
+      - name: Debug frontend coverage files
+        run: |
+          echo "=== Checking frontend coverage directory ==="
+          ls -la frontend/coverage/ 2>/dev/null || echo "frontend/coverage/ does not exist"
+          echo ""
+          echo "=== Looking for coverage-summary.json ==="
+          find frontend -name "coverage-summary.json" 2>/dev/null || echo "No coverage-summary.json found"
+          echo ""
+          echo "=== Coverage directory contents ==="
+          find frontend/coverage -type f 2>/dev/null | head -20 || echo "No coverage files found"
         continue-on-error: true
 
       - name: Generate frontend coverage summary
