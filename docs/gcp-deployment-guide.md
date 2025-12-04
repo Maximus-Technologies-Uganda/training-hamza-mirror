@@ -119,10 +119,11 @@ For environment-specific deployments:
 
 ### 4.1 Trigger a Deployment
 
-You can trigger deployment by:
+Deployments are triggered manually via the GitHub Actions UI:
 
-1. **Push changes** to `src/blog/**` files
-2. **Manual trigger**: Go to Actions > "Deploy Blog API to Cloud Run" > "Run workflow"
+1. **Manual trigger**: Go to Actions > "Deploy Blog API to Cloud Run" > "Run workflow"
+2. Select the target environment (dev, staging, or prod)
+3. Click "Run workflow"
 
 ### 4.2 Monitor the Deployment
 
