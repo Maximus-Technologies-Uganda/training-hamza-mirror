@@ -9,20 +9,12 @@
 # 2. GitHub repository variables must be configured (see terraform outputs)
 #
 # Triggers:
-# - Push to main/development branch with backend changes
-# - Manual workflow dispatch
+# - Manual workflow dispatch only (can be triggered from any branch)
 # =============================================================================
 
 name: Deploy Blog API to Cloud Run
 
 on:
-  push:
-    branches: [main, development]
-    paths:
-      - 'src/blog/**'
-      - 'package*.json'
-      - 'Dockerfile'
-      - '.github/workflows/deploy-cloud-run.yml'
   workflow_dispatch:
     inputs:
       environment:
