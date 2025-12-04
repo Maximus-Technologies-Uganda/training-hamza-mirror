@@ -22,7 +22,7 @@ import { postsRoutes } from './routes/posts.js';
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'memory';
+const STORAGE_TYPE = process.env.STORAGE_TYPE || (NODE_ENV === 'production' ? 'sqlite' : 'memory');
 const SQLITE_DB_PATH = process.env.SQLITE_DB_PATH || './data/blog.db';
 const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
 const FIRESTORE_COLLECTION = process.env.FIRESTORE_COLLECTION || 'posts';
