@@ -33,36 +33,185 @@ export class SQLiteStorage {
   }
 
   /**
-   * Create database schema if it doesn't exist
+   * Create database schema if it doesn't exist, and migrate existing schemas
    */
   initSchema() {
+    // Enable foreign key enforcement
+    this.db.pragma('foreign_keys = ON');
+
+    // Create users table FIRST (before posts, since posts references users)
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS posts (
+      CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL CHECK(length(trim(title)) > 0 AND length(title) <= 200),
-        slug TEXT NOT NULL UNIQUE CHECK(slug NOT LIKE '%[-][-]%'),
-        body TEXT NOT NULL CHECK(length(trim(body)) > 0 AND length(body) <= 50000),
-        createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-        updatedAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        username TEXT NOT NULL UNIQUE CHECK(length(username) >= 3 AND length(username) <= 50),
+        passwordHash TEXT NOT NULL,
+        createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
       );
 
-      CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(createdAt DESC);
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
     `);
+
+    // Check if posts table exists and needs migration
+    const postsTableExists = this.db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='posts'"
+    ).get();
+
+    if (postsTableExists) {
+      // Check if ownerId column exists
+      const columns = this.db.prepare("PRAGMA table_info(posts)").all();
+      const hasOwnerId = columns.some(col => col.name === 'ownerId');
+
+      if (!hasOwnerId) {
+        // Migration: add ownerId column to existing posts table
+        // We need to handle existing posts that have no owner
+        this.migrateAddOwnerId();
+      }
+    } else {
+      // Create posts table with full schema (new database)
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS posts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL CHECK(length(trim(title)) > 0 AND length(title) <= 200),
+          slug TEXT NOT NULL UNIQUE CHECK(slug NOT LIKE '%[-][-]%'),
+          body TEXT NOT NULL CHECK(length(trim(body)) > 0 AND length(body) <= 50000),
+          ownerId INTEGER NOT NULL REFERENCES users(id),
+          createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updatedAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(createdAt DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug);
+        CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts(ownerId);
+      `);
+    }
   }
 
   /**
-   * Create a new post
-   * @param {Object} postData - Post data {title, slug, body}
-   * @returns {Promise<Object>} Created post with id and timestamps
+   * Migrate existing posts table to add ownerId column
+   * Assigns legacy posts to ownerId = 0 (system/unowned) so any authenticated user can edit/delete them
    */
-  async createPost({ title, slug, body }) {
+  migrateAddOwnerId() {
+    // Check if there are any existing posts that need an owner
+    const postCount = this.db.prepare('SELECT COUNT(*) as count FROM posts').get().count;
+
+    // Add ownerId column with a default value for existing rows
+    // SQLite doesn't support adding NOT NULL columns without defaults, so we add nullable first
+    this.db.exec(`ALTER TABLE posts ADD COLUMN ownerId INTEGER REFERENCES users(id)`);
+    
+    if (postCount > 0) {
+      // Backfill existing posts with ownerId = 0 (legacy/system posts)
+      // Posts with ownerId = 0 can be edited/deleted by any authenticated user
+      this.db.prepare('UPDATE posts SET ownerId = 0 WHERE ownerId IS NULL').run();
+      console.log(`[MIGRATION] Assigned ${postCount} legacy posts to ownerId = 0 (editable by any authenticated user)`);
+    }
+
+    // Create the owner index
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts(ownerId)`);
+    
+    console.log('[MIGRATION] Successfully added ownerId column to posts table');
+  }
+
+  // ==================== User Methods ====================
+
+  /**
+   * Create a new user
+   * @param {Object} userData - User data {username, passwordHash}
+   * @returns {Promise<Object>} Created user with id and timestamps
+   */
+  async createUser({ username, passwordHash }) {
     const stmt = this.db.prepare(`
-      INSERT INTO posts (title, slug, body, createdAt, updatedAt)
-      VALUES (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      INSERT INTO users (username, passwordHash, createdAt)
+      VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     `);
 
-    const info = stmt.run(title, slug, body);
+    const info = stmt.run(username, passwordHash);
+    
+    // Retrieve the created user
+    const user = this.db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+    
+    return {
+      id: user.id,
+      username: user.username,
+      passwordHash: user.passwordHash,
+      createdAt: user.createdAt
+    };
+  }
+
+  /**
+   * Retrieve a user by ID
+   * @param {number} id - User ID
+   * @returns {Promise<Object|null>} User object or null if not found
+   */
+  async getUser(id) {
+    const user = this.db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      username: user.username,
+      passwordHash: user.passwordHash,
+      createdAt: user.createdAt
+    };
+  }
+
+  /**
+   * Retrieve a user by username
+   * @param {string} username - Username
+   * @returns {Promise<Object|null>} User object or null if not found
+   */
+  async getUserByUsername(username) {
+    const user = this.db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      username: user.username,
+      passwordHash: user.passwordHash,
+      createdAt: user.createdAt
+    };
+  }
+
+  /**
+   * Determine whether any real (non-system) user exists in the database
+   * Excludes the _system_migration user created during schema migration
+   * to ensure bootstrap admin creation still happens after legacy upgrades
+   * @returns {Promise<boolean>} true if at least one real user exists
+   */
+  async hasAnyUsers() {
+    const row = this.db.prepare(
+      "SELECT 1 as hasUser FROM users WHERE username != '_system_migration' LIMIT 1"
+    ).get();
+    return !!row;
+  }
+
+  // ==================== Post Methods ====================
+
+  // ==================== Post Methods ====================
+
+  /**
+   * Create a new post
+   * @param {Object} postData - Post data {title, slug, body, ownerId}
+   * @returns {Promise<Object>} Created post with id and timestamps
+   */
+  async createPost({ title, slug, body, ownerId }) {
+    if (ownerId === null || ownerId === undefined) {
+      const error = new Error('ownerId is required');
+      error.code = 'SQLITE_CONSTRAINT_NOTNULL';
+      throw error;
+    }
+
+    const stmt = this.db.prepare(`
+      INSERT INTO posts (title, slug, body, ownerId, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    `);
+
+    const info = stmt.run(title, slug, body, ownerId);
     
     // Retrieve the created post
     const post = this.db.prepare('SELECT * FROM posts WHERE id = ?').get(info.lastInsertRowid);
@@ -72,6 +221,7 @@ export class SQLiteStorage {
       title: post.title,
       slug: post.slug,
       body: post.body,
+      ownerId: post.ownerId,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt
     };
@@ -88,6 +238,7 @@ export class SQLiteStorage {
       title: post.title,
       slug: post.slug,
       body: post.body,
+      ownerId: post.ownerId,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt
     }));
@@ -110,6 +261,7 @@ export class SQLiteStorage {
       title: post.title,
       slug: post.slug,
       body: post.body,
+      ownerId: post.ownerId,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt
     };

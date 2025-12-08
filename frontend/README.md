@@ -13,8 +13,8 @@ A responsive web frontend for the Blog Posts API built with Next.js, TypeScript,
 ### Environment Variables
 
 | Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | Yes | Base URL of the Blog Posts API | `http://localhost:3001` |
+|----------|----------|-------------|---------||
+| `NEXT_PUBLIC_API_URL` | Yes | Base URL of the Blog Posts API | `http://localhost:3000` |
 
 ### Quick Setup
 
@@ -27,7 +27,7 @@ A responsive web frontend for the Blog Posts API built with Next.js, TypeScript,
 
 2. **Configure environment** - Create `.env.local`:
    ```env
-   NEXT_PUBLIC_API_URL=http://localhost:3001
+   NEXT_PUBLIC_API_URL=http://localhost:3000
    ```
 
 3. **Start the API** (in a separate terminal from repo root):
@@ -91,7 +91,7 @@ Edit `.env.local` with your API URL:
 
 ```env
 # Local development
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3000
 
 # Production (GitHub Pages example)
 # NEXT_PUBLIC_API_URL=https://your-api-domain.com
@@ -114,7 +114,7 @@ In a separate terminal, start the Blog Posts API:
 npm run blog:dev
 ```
 
-The API will be available at [http://localhost:3001](http://localhost:3001).
+The API will be available at [http://localhost:3000](http://localhost:3000).
 
 ## Available Scripts
 
@@ -188,14 +188,14 @@ frontend/
 ### Required Variables
 
 | Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | Blog API base URL | `http://localhost:3001` |
+|----------|-------------|---------||
+| `NEXT_PUBLIC_API_URL` | Blog API base URL | `http://localhost:3000` |
 
 ### Development vs Production
 
 **Local Development** (`.env.local`):
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
 **Production** (GitHub Actions / deployment):

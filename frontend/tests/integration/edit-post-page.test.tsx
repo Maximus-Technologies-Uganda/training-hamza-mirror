@@ -8,15 +8,22 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import EditPostClient from '@/app/posts/[id]/edit/EditPostClient';
 import type { Post } from '@/lib/types';
+import { AuthProvider } from '@/components/AuthProvider';
 
-// Mock router
+// Mock router - must be before component imports
+const mockNotFoundFn = jest.fn(() => {
+  // notFound() should throw to stop component rendering
+  throw new Error('NEXT_NOT_FOUND');
+});
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
+    replace: mockReplace,
     back: jest.fn(),
   }),
-  notFound: jest.fn(),
+  notFound: () => mockNotFoundFn(),
 }));
 
 // Mock SWR
@@ -43,10 +50,29 @@ jest.mock('@/lib/api', () => ({
   },
 }));
 
+// Mock auth functions - authenticated user who owns the post by default
+jest.mock('@/lib/auth', () => ({
+  getCurrentUser: jest.fn(() => ({ id: 1, username: 'alice' })),
+  isAuthenticated: jest.fn(() => true),
+  getToken: jest.fn(() => 'mock-token'),
+  login: jest.fn(),
+  logout: jest.fn(),
+  getAuthHeaders: jest.fn(() => ({ Authorization: 'Bearer mock-token' })),
+}));
+
 // Import SWR mock
 import useSWR from 'swr';
 
 const mockUseSWR = useSWR as jest.Mock;
+
+// Helper to render with AuthProvider
+const renderWithAuth = (ui: React.ReactElement) => {
+  return render(
+    <AuthProvider>
+      {ui}
+    </AuthProvider>
+  );
+};
 
 describe('EditPostClient', () => {
   const mockPost: Post = {
@@ -56,6 +82,7 @@ describe('EditPostClient', () => {
     body: 'This is test content for the post.',
     createdAt: '2025-11-27T10:00:00Z',
     updatedAt: '2025-11-27T10:00:00Z',
+    ownerId: 1, // Added ownerId to match authenticated user
   };
 
   beforeEach(() => {
@@ -71,7 +98,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       // Check for loading indicators (skeleton elements with animate-pulse)
       const container = document.querySelector('.animate-pulse');
@@ -86,7 +113,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       // Should have pulse animation class
       const skeleton = document.querySelector('.animate-pulse');
@@ -103,7 +130,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /edit post/i })).toBeInTheDocument();
@@ -118,7 +145,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         const titleInput = screen.getByLabelText(/title/i);
@@ -134,7 +161,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         const bodyInput = screen.getByLabelText(/body/i);
@@ -150,7 +177,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /update post/i })).toBeInTheDocument();
@@ -165,7 +192,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         expect(screen.getByText(/update your blog post/i)).toBeInTheDocument();
@@ -183,7 +210,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         expect(screen.getByText(/failed to load post/i)).toBeInTheDocument();
@@ -198,7 +225,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         expect(screen.getByText(/failed to load post for editing/i)).toBeInTheDocument();
@@ -215,13 +242,13 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="42" />);
+      renderWithAuth(<EditPostClient id="42" />);
 
       // The hook should be called with parsed ID
       expect(mockUseSWR).toHaveBeenCalled();
     });
 
-    it('handles invalid ID gracefully', () => {
+    it('handles invalid ID by redirecting to 404', async () => {
       mockUseSWR.mockReturnValue({
         data: undefined,
         error: undefined,
@@ -229,8 +256,12 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      // Should not throw
-      expect(() => render(<EditPostClient id="invalid" />)).not.toThrow();
+      // When post is undefined (not found), component should redirect to 404
+      renderWithAuth(<EditPostClient id="invalid" />);
+      
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/404');
+      });
     });
   });
 
@@ -243,7 +274,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
@@ -258,7 +289,7 @@ describe('EditPostClient', () => {
         mutate: mockMutate,
       });
 
-      render(<EditPostClient id="1" />);
+      renderWithAuth(<EditPostClient id="1" />);
 
       expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
     });

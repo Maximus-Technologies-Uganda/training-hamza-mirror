@@ -178,6 +178,11 @@ localStorage.removeItem('user');
 | `JWT_SECRET` | Yes (prod) | Secret key for signing JWT tokens | Auto-generated in dev |
 | `JWT_EXPIRES_IN` | No | Token expiration time | `24h` |
 
+#### Initial Production User
+
+- Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` (or `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD`) in production to seed a bootstrap admin account at startup.
+- If no credentials are provided and no users exist, the server will create an `admin` user with a generated password and log it once; store it securely and change it after first login.
+
 ### Quick Start
 
 Start the API server:

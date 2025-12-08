@@ -10,8 +10,10 @@ import { useEffect } from 'react';
 import { useSWRConfig } from 'swr';
 import { usePost } from '@/lib/hooks/usePost';
 import { deletePost, isApiError } from '@/lib/api';
+import { isAuthenticationError, isAuthorizationError } from '@/lib/errors';
 import PostDetail from '@/components/PostDetail';
 import ErrorMessage from '@/components/ErrorMessage';
+import AuthErrorMessage from '@/components/AuthErrorMessage';
 import type { Post } from '@/lib/types';
 
 /**
@@ -33,7 +35,7 @@ export default function PostDetailClient({ id }: PostDetailClientProps) {
   // Strict validation: ID must be purely numeric (e.g., reject "1abc")
   const isValidId = isStrictlyNumericId(id);
   const postId = isValidId ? parseInt(id, 10) : null;
-  const { post, isLoading, isError, mutate } = usePost(postId);
+  const { post, isLoading, isError, mutate, cacheKey } = usePost(postId);
 
   // Handle invalid ID - redirect to 404
   useEffect(() => {
@@ -95,11 +97,23 @@ export default function PostDetailClient({ id }: PostDetailClientProps) {
 
   // Error state (non-404)
   if (isError) {
+    // Use AuthErrorMessage for 401/403 auth errors (US7)
+    if (isApiError(isError) && (isAuthenticationError(isError.statusCode) || isAuthorizationError(isError.statusCode))) {
+      return (
+        <div className="max-w-4xl mx-auto">
+          <AuthErrorMessage
+            status={isError.statusCode}
+            onRetry={() => cacheKey && globalMutate(cacheKey)}
+          />
+        </div>
+      );
+    }
+    
     return (
       <div className="max-w-4xl mx-auto">
         <ErrorMessage
           message={isError.message || 'Failed to load post. Please try again.'}
-          onRetry={() => mutate()}
+          onRetry={() => cacheKey && globalMutate(cacheKey)}
         />
       </div>
     );
@@ -126,7 +140,9 @@ export default function PostDetailClient({ id }: PostDetailClientProps) {
     );
     
     // Clear the individual post cache (no revalidation needed, we're navigating away)
-    mutate();
+    if (cacheKey) {
+      globalMutate(cacheKey, undefined, { revalidate: false });
+    }
     
     // Redirect to homepage
     router.push('/');

@@ -21,7 +21,9 @@ export interface UsePostReturn {
   /** Error object if fetch failed (e.g., 404), undefined otherwise */
   isError: Error | undefined;
   /** Function to manually revalidate the post cache */
-  mutate: () => void;
+  mutate: (data?: Post | undefined, opts?: { revalidate?: boolean }) => Promise<Post | undefined>;
+  /** The SWR cache key for this post */
+  cacheKey: string | null;
 }
 
 /**
@@ -61,8 +63,9 @@ export interface UsePostReturn {
  * ```
  */
 export function usePost(id: number | null): UsePostReturn {
+  const cacheKey = id ? `/posts/${id}` : null;
   const { data, error, isLoading, mutate } = useSWR<Post>(
-    id ? `/posts/${id}` : null,
+    cacheKey,
     id ? () => getPost(id) : null,
     {
       revalidateOnFocus: false,
@@ -76,5 +79,6 @@ export function usePost(id: number | null): UsePostReturn {
     isLoading,
     isError: error,
     mutate,
+    cacheKey,
   };
 }

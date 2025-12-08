@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2025-11-24
 
 ## Active Technologies
+- Node.js 20+ (ES Modules), TypeScript 5.5+ (frontend) + Fastify 4.x, jsonwebtoken, bcrypt (API); Next.js 14, react-hook-form, swr (frontend) (004-blog-auth)
+- Memory/SQLite/Firestore (existing adapters extended with User entity) (004-blog-auth)
 
 ### Frontend (003-frontend-blog-integration)
 - **Framework**: Next.js 14.2+ with App Router, React 18.3+, TypeScript 5.5+ (strict mode)
@@ -86,6 +88,7 @@ npm run test:coverage # Coverage report
 - Semantic HTML with ARIA labels for accessibility
 
 ## Recent Changes
+- 004-blog-auth: Added Node.js 20+ (ES Modules), TypeScript 5.5+ (frontend) + Fastify 4.x, jsonwebtoken, bcrypt (API); Next.js 14, react-hook-form, swr (frontend)
 
 ### November 27, 2025 - Feature 003 Planning Complete
 - **003-frontend-blog-integration**: Next.js 14+ frontend with TypeScript, SWR, Tailwind CSS, static export to GitHub Pages

@@ -5,9 +5,27 @@
  * Uses storage adapter for persistence, provides validation and error handling.
  */
 
-import { ValidationError, NotFoundError } from '../middleware/error-handler.js';
+import { ValidationError, NotFoundError, ForbiddenError } from '../middleware/error-handler.js';
 import { validatePost } from '../models/post.js';
 import { generateSlug } from './slug-generator.js';
+
+function assertOwnerId(ownerId) {
+  if (ownerId === null || ownerId === undefined) {
+    throw new ValidationError('ownerId is required for post creation');
+  }
+  if (typeof ownerId !== 'number' || Number.isNaN(ownerId) || ownerId <= 0) {
+    throw new ValidationError('ownerId must be a positive integer');
+  }
+}
+
+function assertUserId(userId, action) {
+  if (userId === null || userId === undefined) {
+    throw new ValidationError(`userId is required to ${action} a post`);
+  }
+  if (typeof userId !== 'number' || Number.isNaN(userId) || userId <= 0) {
+    throw new ValidationError('userId must be a positive integer');
+  }
+}
 
 export class PostService {
   /**
@@ -26,6 +44,8 @@ export class PostService {
    * @throws {ValidationError} If validation fails
    */
   async createPost(postData) {
+    assertOwnerId(postData.ownerId);
+
     // Validate input
     const validation = validatePost(postData);
     if (!validation.valid) {
@@ -81,14 +101,33 @@ export class PostService {
    * @param {Object} updates - Fields to update
    * @param {string} [updates.title] - New title
    * @param {string} [updates.body] - New body
+   * @param {number} [userId] - ID of user making the request (for ownership check)
    * @returns {Promise<Object>} Updated post
    * @throws {ValidationError} If validation fails
    * @throws {NotFoundError} If post not found
+   * @throws {ForbiddenError} If user is not the owner
    */
-  async updatePost(id, updates) {
+  async updatePost(id, updates, userId = null) {
+    assertUserId(userId, 'update');
+
     // Validate at least one field is provided
     if (!updates.title && !updates.body) {
       throw new ValidationError('At least one field (title or body) is required');
+    }
+
+    // Check if post exists and verify ownership
+    const existingPost = await this.storage.getPostById(id);
+    if (!existingPost) {
+      throw new NotFoundError(`Post with id ${id} not found`);
+    }
+
+    // Ownership check: ensure user owns the post OR the post is a legacy post (ownerId = 0)
+    // Legacy posts (ownerId === 0) can be edited by any authenticated user
+    const isLegacyPost = existingPost.ownerId === 0;
+    const isOwner = existingPost.ownerId === userId;
+    
+    if (!isLegacyPost && !isOwner) {
+      throw new ForbiddenError('Not authorized to edit this post');
     }
 
     // Validate individual fields if provided
@@ -136,10 +175,29 @@ export class PostService {
   /**
    * Delete a post
    * @param {number} id - Post ID
+   * @param {number} [userId] - ID of user making the request (for ownership check)
    * @returns {Promise<boolean>} true if deleted
    * @throws {NotFoundError} If post not found
+   * @throws {ForbiddenError} If user is not the owner
    */
-  async deletePost(id) {
+  async deletePost(id, userId = null) {
+    assertUserId(userId, 'delete');
+
+    // Check if post exists and verify ownership
+    const existingPost = await this.storage.getPostById(id);
+    if (!existingPost) {
+      throw new NotFoundError(`Post with id ${id} not found`);
+    }
+
+    // Ownership check: ensure user owns the post OR the post is a legacy post (ownerId = 0)
+    // Legacy posts (ownerId === 0) can be deleted by any authenticated user
+    const isLegacyPost = existingPost.ownerId === 0;
+    const isOwner = existingPost.ownerId === userId;
+    
+    if (!isLegacyPost && !isOwner) {
+      throw new ForbiddenError('Not authorized to delete this post');
+    }
+
     const deleted = await this.storage.deletePost(id);
     if (!deleted) {
       throw new NotFoundError(`Post with id ${id} not found`);

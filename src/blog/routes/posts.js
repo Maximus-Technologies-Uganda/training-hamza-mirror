@@ -16,8 +16,9 @@ export async function postsRoutes(fastify) {
   // Initialize PostService with storage adapter
   const postService = new PostService(fastify.storage);
 
-  // POST /posts - Create a new post
+  // POST /posts - Create a new post (requires authentication)
   fastify.post('/posts', {
+    preHandler: [fastify.authenticate],
     schema: {
       description: 'Create a new blog post',
       tags: ['posts'],
@@ -27,7 +28,9 @@ export async function postsRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    const post = await postService.createPost(request.body);
+    // Extract user ID from JWT token for ownership
+    const ownerId = request.user.id;
+    const post = await postService.createPost({ ...request.body, ownerId });
     reply.code(201).send(post);
   });
 
@@ -73,8 +76,9 @@ export async function postsRoutes(fastify) {
     return post;
   });
 
-  // PATCH /posts/:id - Update an existing post
+  // PATCH /posts/:id - Update an existing post (requires authentication + ownership)
   fastify.patch('/posts/:id', {
+    preHandler: [fastify.authenticate],
     schema: {
       description: 'Update an existing blog post',
       tags: ['posts'],
@@ -95,12 +99,15 @@ export async function postsRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    const post = await postService.updatePost(request.params.id, request.body);
+    // Extract user ID from JWT token for ownership check
+    const userId = request.user.id;
+    const post = await postService.updatePost(request.params.id, request.body, userId);
     return post;
   });
 
-  // DELETE /posts/:id - Delete a post
+  // DELETE /posts/:id - Delete a post (requires authentication + ownership)
   fastify.delete('/posts/:id', {
+    preHandler: [fastify.authenticate],
     schema: {
       description: 'Delete a blog post',
       tags: ['posts'],
@@ -123,7 +130,9 @@ export async function postsRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    await postService.deletePost(request.params.id);
+    // Extract user ID from JWT token for ownership check
+    const userId = request.user.id;
+    await postService.deletePost(request.params.id, userId);
     reply.code(204).send();
   });
 }

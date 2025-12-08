@@ -167,7 +167,7 @@ jobs:
       id-token: write
     
     environment:
-      name: ${{ env.DEPLOY_ENV }}
+      name: ${{ github.event.inputs.environment || 'dev' }}
       url: ${{ steps.deploy.outputs.url }}
     
     steps:

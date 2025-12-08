@@ -5,18 +5,24 @@
  * Configures Fastify with middleware, routes, and error handling.
  */
 
+import 'dotenv/config';
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import jwt from '@fastify/jwt';
 import fastifyRequestContext from '@fastify/request-context';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import { errorHandler } from './middleware/error-handler.js';
+import { requestIdPlugin } from './middleware/request-id.js';
+import { authPlugin } from './middleware/auth.js';
 import { MemoryStorage } from './storage/memory-storage.js';
+import { UserService } from './services/user-service.js';
 import { healthRoutes } from './routes/health.js';
 import { postsRoutes } from './routes/posts.js';
+import { authRoutes } from './routes/auth.js';
 
 // Environment configuration
 const PORT = process.env.PORT || 3000;
@@ -29,9 +35,40 @@ const FIRESTORE_COLLECTION = process.env.FIRESTORE_COLLECTION || 'posts';
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
 const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10); // 1 minute default
 
+// Auto-generate JWT_SECRET in development if not provided
+// In production, JWT_SECRET must be explicitly set
+let JWT_SECRET = process.env.JWT_SECRET;
+let generatedDevSecret = false;
+if (!JWT_SECRET && NODE_ENV !== 'production') {
+  JWT_SECRET = randomBytes(32).toString('hex');
+  generatedDevSecret = true;
+}
+
 // Trust proxy headers only when explicitly enabled or running on Cloud Run (K_SERVICE is set by Cloud Run)
 // SECURITY: Do not enable in untrusted environments - attackers can spoof X-Forwarded-For to bypass rate limiting
 const TRUST_PROXY = process.env.TRUST_PROXY === 'true' || !!process.env.K_SERVICE;
+
+/**
+ * Validate required environment variables
+ * Fail-fast if JWT_SECRET is missing in production
+ */
+function validateEnvironment({ jwtSecret } = {}) {
+  if (!jwtSecret && !JWT_SECRET && NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  }
+}
+
+function resolveJwtSecret(options = {}) {
+  const secret = options.jwtSecret ?? JWT_SECRET;
+  if (!secret && NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  }
+  if (!secret) {
+    // This shouldn't happen since we auto-generate in dev, but just in case
+    throw new Error('JWT_SECRET environment variable is required. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  }
+  return secret;
+}
 
 /**
  * Create storage adapter based on configuration
@@ -60,12 +97,24 @@ async function createStorage() {
  * Create and configure Fastify instance
  */
 export async function createServer(options = {}) {
+  const {
+    skipRequestContext,
+    skipCors,
+    skipHelmet,
+    skipRateLimiting,
+    jwtSecret: providedJwtSecret,
+    logger: providedLogger,
+    ...fastifyOptions
+  } = options;
+
+  validateEnvironment({ jwtSecret: providedJwtSecret });
+
   const fastify = Fastify({
     // Trust proxy headers (X-Forwarded-For) only when behind a trusted proxy like Cloud Run
     // SECURITY: Disabled by default to prevent X-Forwarded-For spoofing attacks on rate limiting
     // Enable via TRUST_PROXY=true env var or automatically on Cloud Run (K_SERVICE detected)
     trustProxy: TRUST_PROXY,
-    logger: NODE_ENV === 'production' ? {
+    logger: providedLogger ?? (NODE_ENV === 'production' ? {
       level: 'info',
       serializers: {
         req(request) {
@@ -85,20 +134,20 @@ export async function createServer(options = {}) {
           ignore: 'pid,hostname'
         }
       }
-    },
+    }),
     genReqId: (req) => req.headers['x-request-id'] || randomUUID(),
     requestIdHeader: 'x-request-id',
     requestIdLogLabel: 'requestId',
-    ...options
+    ...fastifyOptions
   });
 
   // Register request context for request ID tracking (if not in test mode)
-  if (!options.skipRequestContext) {
+  if (!skipRequestContext) {
     fastify.register(fastifyRequestContext, {
       hook: 'preValidation',
-      defaultStoreValues: (req) => ({
-        requestId: req?.id || 'unknown'
-      })
+      defaultStoreValues: {
+        requestId: () => randomUUID()
+      }
     });
   }
 
@@ -109,6 +158,22 @@ export async function createServer(options = {}) {
   
   // Log storage type on startup
   fastify.log.info(`Using ${STORAGE_TYPE} storage adapter`);
+
+  // Register request-id middleware (adds X-Request-Id to all responses)
+  fastify.register(requestIdPlugin);
+
+  // Register JWT plugin for authentication (fails fast if secret is missing)
+  const jwtSecret = resolveJwtSecret({ jwtSecret: providedJwtSecret });
+  await fastify.register(jwt, { secret: jwtSecret });
+  
+  // Register auth middleware (adds fastify.authenticate decorator)
+  await fastify.register(authPlugin);
+  
+  fastify.log.info('JWT authentication enabled');
+
+  // Create UserService and decorate fastify instance
+  const userService = new UserService(storage);
+  fastify.decorate('userService', userService);
 
   // Register Swagger for OpenAPI documentation
   fastify.register(swagger, {
@@ -149,7 +214,7 @@ export async function createServer(options = {}) {
   });
 
   // Register CORS (skip in test mode if requested)
-  if (!options.skipCors) {
+  if (!skipCors) {
     fastify.register(cors, {
       origin: NODE_ENV === 'production' 
         ? (origin, cb) => {
@@ -169,35 +234,40 @@ export async function createServer(options = {}) {
   }
 
   // Register security headers with Helmet (skip in test mode if requested)
-  if (!options.skipHelmet) {
+  if (!skipHelmet) {
     fastify.register(helmet, {
       contentSecurityPolicy: NODE_ENV === 'production' ? undefined : false, // Disable CSP in dev for Swagger UI
       global: true
     });
   }
 
-  // Register rate limiting middleware (before routes)
-  fastify.register(rateLimit, {
-    max: RATE_LIMIT_MAX,
-    timeWindow: RATE_LIMIT_WINDOW,
-    errorResponseBuilder: (request, context) => {
-      return {
-        statusCode: 429,
-        error: 'Too Many Requests',
-        message: 'Rate limit exceeded. Please try again later.'
-      };
-    },
-    addHeadersOnExceeding: {
-      'x-ratelimit-limit': true,
-      'x-ratelimit-remaining': true,
-      'x-ratelimit-reset': true
-    },
-    addHeaders: {
-      'x-ratelimit-limit': true,
-      'x-ratelimit-remaining': true,
-      'x-ratelimit-reset': true
-    }
-  });
+  // Register rate limiting middleware (before routes) - skip in test mode if requested
+  if (!skipRateLimiting) {
+    fastify.register(rateLimit, {
+      max: RATE_LIMIT_MAX,
+      timeWindow: RATE_LIMIT_WINDOW,
+      errorResponseBuilder: (request) => {
+        const requestId = request.id || 'unknown';
+        return {
+          error: {
+            code: 'TOO_MANY_REQUESTS',
+            message: 'Rate limit exceeded. Please try again later.',
+            requestId
+          }
+        };
+      },
+      addHeadersOnExceeding: {
+        'x-ratelimit-limit': true,
+        'x-ratelimit-remaining': true,
+        'x-ratelimit-reset': true
+      },
+      addHeaders: {
+        'x-ratelimit-limit': true,
+        'x-ratelimit-remaining': true,
+        'x-ratelimit-reset': true
+      }
+    });
+  }
 
   // Register error handler
   fastify.setErrorHandler(errorHandler);
@@ -205,6 +275,7 @@ export async function createServer(options = {}) {
   // Register routes
   fastify.register(healthRoutes);
   fastify.register(postsRoutes);
+  fastify.register(authRoutes);
 
   return fastify;
 }
@@ -213,11 +284,42 @@ export async function createServer(options = {}) {
  * Start the server
  */
 async function start() {
+  // Validate required environment variables before starting
+  validateEnvironment();
+  
   const server = await createServer();
 
   try {
+    // Seed users for environment
+    if (NODE_ENV === 'production') {
+      const bootstrapUsername = process.env.ADMIN_USERNAME
+        || process.env.DEFAULT_ADMIN_USERNAME
+        || 'admin';
+      const bootstrapPassword = process.env.ADMIN_PASSWORD
+        || process.env.DEFAULT_ADMIN_PASSWORD;
+
+      const bootstrapResult = await server.userService.ensureAdminUser({
+        username: bootstrapUsername,
+        password: bootstrapPassword,
+        logger: server.log
+      });
+
+      if (!bootstrapResult.created && bootstrapResult.reason === 'users-exist') {
+        server.log.info('Existing users detected; skipping bootstrap admin creation');
+      } else if (!bootstrapResult.created && bootstrapResult.reason === 'username-exists') {
+        server.log.info('Bootstrap admin username already exists; no new user created');
+      }
+    } else {
+      await server.userService.seedTestUsers();
+    }
+    
     await server.listen({ port: PORT, host: HOST });
-    console.log(`✓ Server listening on http://${HOST}:${PORT}`);
+    console.log(`[OK] Server listening on http://${HOST}:${PORT}`);
+    
+    // Warn about auto-generated JWT secret in development
+    if (generatedDevSecret) {
+      server.log.warn('JWT_SECRET was auto-generated for development. Set JWT_SECRET env var for persistent sessions.');
+    }
   } catch (err) {
     server.log.error(err);
     process.exit(1);

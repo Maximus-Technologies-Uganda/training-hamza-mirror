@@ -20,6 +20,9 @@ export interface Post {
   /** Post content (1-50000 characters, Markdown supported) */
   body: string;
   
+  /** ID of the user who owns this post */
+  ownerId: number;
+  
   /** ISO 8601 timestamp when post was created */
   createdAt: string;
   
@@ -54,25 +57,27 @@ export interface UpdatePostInput {
 /**
  * API Error response structure (matches backend contract)
  * Returned when an API request fails
+ * 
+ * Backend format (phases 5/6 auth enforcement):
+ * { error: { code, message, requestId?, validation? } }
  */
 export interface ApiErrorResponse {
-  /** HTTP status code (400, 404, 500, etc.) */
-  statusCode: number;
-  
-  /** Error type identifier (e.g., 'Bad Request', 'Not Found') */
-  error: string;
-  
-  /** Human-readable error message */
-  message: string;
-  
-  /** Additional error details (optional) */
-  details?: string;
-  
-  /** Validation errors for form fields (optional) */
-  validation?: Array<{
-    field: string;
+  error: {
+    /** Error code identifier (e.g., 'VALIDATION_ERROR', 'UNAUTHORIZED', 'FORBIDDEN') */
+    code: string;
+    
+    /** Human-readable error message */
     message: string;
-  }>;
+    
+    /** Request ID for tracing (optional) */
+    requestId?: string;
+    
+    /** Validation errors for form fields (optional) */
+    validation?: Array<{
+      field: string;
+      message: string;
+    }>;
+  };
 }
 
 /**

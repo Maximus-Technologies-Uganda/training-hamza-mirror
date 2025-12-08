@@ -20,6 +20,30 @@ import {
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+/**
+ * Helper to create a properly mocked Response object
+ * The api.ts uses response.text() and response.headers.get() instead of response.json()
+ */
+function createMockResponse(data: unknown, options: { ok?: boolean; status?: number; statusText?: string } = {}) {
+  const { ok = true, status = 200, statusText = 'OK' } = options;
+  const body = data !== undefined ? JSON.stringify(data) : '';
+  return {
+    ok,
+    status,
+    statusText,
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === 'content-length') {
+          return body.length > 0 ? String(body.length) : '0';
+        }
+        return null;
+      },
+    },
+    text: async () => body,
+    json: async () => (data !== undefined ? data : null),
+  };
+}
+
 describe('API Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -203,11 +227,7 @@ describe('API Module', () => {
 
   describe('fetchApi', () => {
     it('makes request with correct URL', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({}),
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse({}));
 
       await fetchApi('/test');
 
@@ -218,11 +238,7 @@ describe('API Module', () => {
     });
 
     it('includes Content-Type header', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({}),
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse({}));
 
       await fetchApi('/test');
 
@@ -237,10 +253,7 @@ describe('API Module', () => {
     });
 
     it('returns undefined for 204 status', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 204,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(undefined, { status: 204 }));
 
       const result = await fetchApi('/test');
       expect(result).toBeUndefined();
@@ -248,27 +261,21 @@ describe('API Module', () => {
 
     it('parses JSON response', async () => {
       const data = { id: 1, title: 'Test' };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => data,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(data));
 
       const result = await fetchApi<typeof data>('/test');
       expect(result).toEqual(data);
     });
 
     it('throws ApiError for error responses', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(createMockResponse(
+        {
           statusCode: 404,
           error: 'Not Found',
           message: 'Post not found',
-        }),
-      });
+        },
+        { ok: false, status: 404, statusText: 'Not Found' }
+      ));
 
       await expect(fetchApi('/posts/999')).rejects.toThrow(ApiError);
     });
@@ -309,11 +316,7 @@ describe('API Module', () => {
   describe('getPosts', () => {
     it('fetches from /posts endpoint', async () => {
       const posts = [{ id: 1, title: 'Test', slug: 'test', body: 'Content', createdAt: '', updatedAt: '' }];
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => posts,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(posts));
 
       const result = await getPosts();
 
@@ -328,11 +331,7 @@ describe('API Module', () => {
   describe('getPost', () => {
     it('fetches from /posts/:id endpoint', async () => {
       const post = { id: 42, title: 'Test', slug: 'test', body: 'Content', createdAt: '', updatedAt: '' };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => post,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(post));
 
       const result = await getPost(42);
 
@@ -349,11 +348,7 @@ describe('API Module', () => {
       const input = { title: 'New Post', body: 'Content' };
       const created = { id: 1, ...input, slug: 'new-post', createdAt: '', updatedAt: '' };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 201,
-        json: async () => created,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(created, { status: 201 }));
 
       const result = await createPost(input);
 
@@ -373,11 +368,7 @@ describe('API Module', () => {
       const input = { title: 'Updated Title' };
       const updated = { id: 1, title: 'Updated Title', slug: 'updated-title', body: 'Content', createdAt: '', updatedAt: '' };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => updated,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(updated));
 
       const result = await updatePost(1, input);
 
@@ -394,10 +385,7 @@ describe('API Module', () => {
 
   describe('deletePost', () => {
     it('sends DELETE request', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 204,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(undefined, { status: 204 }));
 
       await deletePost(1);
 
@@ -413,11 +401,7 @@ describe('API Module', () => {
   describe('getHealth', () => {
     it('fetches from /health endpoint', async () => {
       const health = { status: 'ok', timestamp: '2025-11-27T10:00:00Z' };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => health,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(health));
 
       const result = await getHealth();
 

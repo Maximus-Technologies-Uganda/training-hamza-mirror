@@ -13,14 +13,88 @@ export class MemoryStorage extends StorageAdapter {
     super();
     this.posts = new Map(); // Map<id, post>
     this.nextId = 1;
+    
+    // User storage
+    this.users = new Map(); // Map<id, user>
+    this.nextUserId = 1;
+  }
+
+  // ==================== User Methods ====================
+
+  /**
+   * Create a new user
+   * @param {Object} userData - User data containing username and passwordHash
+   * @returns {Promise<Object>} Created user with generated fields
+   */
+  async createUser(userData) {
+    // Enforce unique username
+    for (const user of this.users.values()) {
+      if (user.username === userData.username) {
+        const error = new Error('UNIQUE constraint failed: users.username');
+        error.code = 'SQLITE_CONSTRAINT_UNIQUE';
+        throw error;
+      }
+    }
+
+    const now = new Date().toISOString();
+    const user = {
+      id: this.nextUserId++,
+      username: userData.username,
+      passwordHash: userData.passwordHash,
+      createdAt: now
+    };
+
+    this.users.set(user.id, user);
+    return user;
   }
 
   /**
+   * Retrieve a user by ID
+   * @param {number} id - User ID
+   * @returns {Promise<Object|null>} User object or null if not found
+   */
+  async getUser(id) {
+    return this.users.get(id) || null;
+  }
+
+  /**
+   * Retrieve a user by username
+   * @param {string} username - Username
+   * @returns {Promise<Object|null>} User object or null if not found
+   */
+  async getUserByUsername(username) {
+    for (const user of this.users.values()) {
+      if (user.username === username) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if any user exists in memory
+   * @returns {Promise<boolean>} true if at least one user exists
+   */
+  async hasAnyUsers() {
+    return this.users.size > 0;
+  }
+
+  // ==================== Post Methods ====================
+
+  // ==================== Post Methods ====================
+
+  /**
    * Create a new post
-   * @param {Object} postData - Post data containing title and body
+   * @param {Object} postData - Post data containing title, body, and optionally ownerId
    * @returns {Promise<Object>} Created post with generated fields
    */
   async createPost(postData) {
+    if (postData.ownerId === null || postData.ownerId === undefined) {
+      const error = new Error('ownerId is required');
+      error.code = 'SQLITE_CONSTRAINT_NOTNULL';
+      throw error;
+    }
+
     const slug = postData.slug ?? generateSlug(postData.title);
 
     // Mirror SQLite UNIQUE constraint on slug
@@ -36,6 +110,7 @@ export class MemoryStorage extends StorageAdapter {
       title: postData.title,
       slug,
       body: postData.body,
+      ownerId: postData.ownerId,
       createdAt: now,
       updatedAt: now
     };

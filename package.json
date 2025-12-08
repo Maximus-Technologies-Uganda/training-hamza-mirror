@@ -9,7 +9,7 @@
     "test:contract": "vitest run tests/blog/contract",
     "test:postman": "newman run docs/blog-posts-api.postman_collection.json --env-var baseUrl=http://localhost:3000",
     "dev": "node src/blog/server.js",
-    "start": "NODE_ENV=production node src/blog/server.js"
+    "start": "node src/blog/server.js"
   },
   "repository": {
     "type": "git",
@@ -37,12 +37,16 @@
   "dependencies": {
     "@fastify/cors": "^8.5.0",
     "@fastify/helmet": "^11.1.1",
+    "@fastify/jwt": "^8.0.1",
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/request-context": "^4.2.0",
     "@fastify/swagger": "^8.15.0",
     "@fastify/swagger-ui": "^4.2.0",
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.4.6",
+    "dotenv": "^17.2.3",
     "fastify": "^4.29.1",
+    "fastify-plugin": "^5.1.0",
     "slugify": "^1.6.0"
   }
 }

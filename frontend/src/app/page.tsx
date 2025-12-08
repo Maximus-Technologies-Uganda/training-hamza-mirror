@@ -18,8 +18,8 @@ export default function HomePage() {
     <div>
       <header className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Blog Posts</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Blog Posts</h1>
+          <p className="text-gray-600 text-sm">
             Discover and read our latest blog posts
           </p>
         </div>
