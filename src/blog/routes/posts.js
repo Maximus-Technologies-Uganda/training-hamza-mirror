@@ -8,7 +8,7 @@
 import { PostService } from '../services/post-service.js';
 import { createPostSchema, updatePostSchema, postSchema } from '../models/post.js';
 import { validateCreatePost, formatZodErrors } from '../models/post.zod.js';
-import { ValidationError } from '../middleware/error-handler.js';
+import { ValidationError, NotFoundError } from '../middleware/error-handler.js';
 import { AuditTargetType, AuditAction } from '../services/audit-service.js';
 
 /**
@@ -144,7 +144,7 @@ export async function postsRoutes(fastify) {
     const beforePost = await postService.getPostById(postId);
     
     if (!beforePost) {
-      return reply.code(404).send({ message: 'Not Found' });
+      throw new NotFoundError(`Post with ID ${postId} not found`);
     }
     
     // Update post (ownership already verified by middleware)
@@ -202,7 +202,7 @@ export async function postsRoutes(fastify) {
     const post = await postService.getPostById(postId);
     
     if (!post) {
-      return reply.code(404).send({ message: 'Not Found' });
+      throw new NotFoundError(`Post with ID ${postId} not found`);
     }
     
     // Delete post (ownership already verified by middleware)

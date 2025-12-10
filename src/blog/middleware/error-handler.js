@@ -275,6 +275,7 @@ export async function errorHandler(error, request, reply) {
   // Build error response (OpenAPI-compliant JSON structure)
   const errorResponse = {
     error: {
+      statusCode,
       code: errorCode || errorType?.toUpperCase().replace(/ /g, '_') || 'ERROR',
       message,
       requestId
