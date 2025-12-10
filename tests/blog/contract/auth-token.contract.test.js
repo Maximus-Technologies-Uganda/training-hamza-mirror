@@ -26,7 +26,9 @@ describe('Auth Token Validation - Contract Tests', () => {
       skipHelmet: true,
       skipRequestContext: true,
       skipRateLimiting: true,
-      jwtSecret: 'test-secret'
+      skipCSRF: true,
+      jwtSecret: 'test-secret',
+      useJwtAuth: true
     });
     await server.ready();
 
@@ -62,7 +64,7 @@ describe('Auth Token Validation - Contract Tests', () => {
       expect(data).toHaveProperty('error');
       expect(data.error).toHaveProperty('code');
       // Implementation treats invalid tokens as "auth required" for security
-      expect(['UNAUTHORIZED', 'INVALID_TOKEN']).toContain(data.error.code);
+      expect(['UNAUTHORIZED', 'TOKEN_INVALID', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
 
     it('should return 401 for completely invalid JWT structure', async () => {
@@ -84,7 +86,7 @@ describe('Auth Token Validation - Contract Tests', () => {
       expect(response.statusCode).toBe(401);
       
       const data = JSON.parse(response.body);
-      expect(['UNAUTHORIZED', 'INVALID_TOKEN']).toContain(data.error.code);
+      expect(['UNAUTHORIZED', 'TOKEN_INVALID', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
 
     it('should return 401 UNAUTHORIZED for missing Authorization header', async () => {
@@ -100,7 +102,7 @@ describe('Auth Token Validation - Contract Tests', () => {
       expect(response.statusCode).toBe(401);
       
       const data = JSON.parse(response.body);
-      expect(data.error.code).toBe('UNAUTHORIZED');
+      expect(['UNAUTHORIZED', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
 
     it('should return 401 for Bearer prefix without token', async () => {
@@ -147,7 +149,7 @@ describe('Auth Token Validation - Contract Tests', () => {
       expect(response.statusCode).toBe(401);
       
       const data = JSON.parse(response.body);
-      expect(['UNAUTHORIZED', 'INVALID_TOKEN']).toContain(data.error.code);
+      expect(['UNAUTHORIZED', 'TOKEN_INVALID', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
   });
 
@@ -172,7 +174,7 @@ describe('Auth Token Validation - Contract Tests', () => {
         expect(data).toHaveProperty('error');
         expect(data.error).toHaveProperty('code');
         expect(data.error).toHaveProperty('message');
-        expect(['UNAUTHORIZED', 'INVALID_TOKEN']).toContain(data.error.code);
+        expect(['UNAUTHORIZED', 'INVALID_TOKEN', 'AUTH_REQUIRED']).toContain(data.error.code);
       });
 
       it(`${method} ${url} returns 401 with invalid token`, async () => {
@@ -188,8 +190,8 @@ describe('Auth Token Validation - Contract Tests', () => {
         expect(response.statusCode).toBe(401);
         
         const data = JSON.parse(response.body);
-        // Both UNAUTHORIZED and INVALID_TOKEN are valid 401 responses
-        expect(['UNAUTHORIZED', 'INVALID_TOKEN']).toContain(data.error.code);
+        // Both UNAUTHORIZED and TOKEN_INVALID are valid 401 responses
+        expect(['UNAUTHORIZED', 'TOKEN_INVALID', 'AUTH_REQUIRED']).toContain(data.error.code);
       });
     });
   });

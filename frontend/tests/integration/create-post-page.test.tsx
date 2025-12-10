@@ -25,7 +25,7 @@ jest.mock('@/lib/api', () => ({
 
 // Mock auth functions - authenticated user by default for create page
 jest.mock('@/lib/auth', () => ({
-  getCurrentUser: jest.fn(() => ({ id: 1, username: 'alice' })),
+  getCurrentUser: jest.fn(() => ({ id: 1, email: 'alice@example.com' })),
   isAuthenticated: jest.fn(() => true),
   getToken: jest.fn(() => 'mock-token'),
   login: jest.fn(),
@@ -33,13 +33,29 @@ jest.mock('@/lib/auth', () => ({
   getAuthHeaders: jest.fn(() => ({ Authorization: 'Bearer mock-token' })),
 }));
 
-// Helper to render with AuthProvider
+// Mock AuthProvider to return authenticated state immediately (no loading)
+jest.mock('@/components/AuthProvider', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    user: { uid: '123', email: 'alice@example.com', displayName: 'Alice', isAdmin: false },
+    isAuthenticated: true,
+    isLoading: false,
+    isAdmin: false,
+    firebaseUser: null,
+    login: jest.fn(),
+    signInWithEmail: jest.fn(),
+    logout: jest.fn(),
+    refreshAuth: jest.fn(),
+    getIdToken: jest.fn().mockResolvedValue('mock-token'),
+  }),
+  getUserDisplayName: (user: { displayName?: string; email?: string }) => user?.displayName || user?.email || '',
+  isFirebaseUser: () => true,
+  getUserId: (user: { uid?: string }) => user?.uid || null,
+}));
+
+// Helper to render (no need for AuthProvider wrapper since we mock it)
 const renderWithAuth = (ui: React.ReactElement) => {
-  return render(
-    <AuthProvider>
-      {ui}
-    </AuthProvider>
-  );
+  return render(ui);
 };
 
 describe('Create Post Page', () => {

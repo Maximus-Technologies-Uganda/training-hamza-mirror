@@ -30,6 +30,21 @@ const customJestConfig = {
       statements: 70,
     },
   },
+  reporters: [
+    'default',
+    [
+      'jest-html-reporters',
+      {
+        publicPath: './test-reports',
+        filename: 'a11y-report.html',
+        pageTitle: 'Accessibility Test Report - Blog Frontend',
+        expand: true,
+        openReport: false,
+        includeFailureMsg: true,
+        includeConsoleLog: true,
+      },
+    ],
+  ],
 };
 
 module.exports = createJestConfig(customJestConfig);

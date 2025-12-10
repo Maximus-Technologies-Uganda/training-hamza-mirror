@@ -127,6 +127,33 @@ export class UserService {
   }
 
   /**
+   * Get or create user from Firebase token
+   * Syncs user data from Firebase Auth to local storage (if needed)
+   * 
+   * @param {Object} firebaseUser - User info extracted from Firebase token
+   * @param {string} firebaseUser.uid - Firebase UID
+   * @param {string} firebaseUser.email - User email
+   * @param {string} [firebaseUser.displayName] - User display name
+   * @param {boolean} [firebaseUser.isAdmin] - Whether user is admin
+   * @param {string} [firebaseUser.role] - User role ('user' or 'admin')
+   * @returns {Promise<Object>} User object with role cached
+   */
+  async getOrCreateUser(firebaseUser) {
+    // For now, we don't persist Firebase users locally
+    // Firebase Auth is the source of truth for user identity and roles
+    // This method exists for future extensibility if local caching is needed
+    
+    // Return normalized user object with role
+    return {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      displayName: firebaseUser.displayName || null,
+      role: firebaseUser.role || (firebaseUser.isAdmin ? 'admin' : 'user'),
+      isAdmin: firebaseUser.isAdmin || false,
+    };
+  }
+
+  /**
    * Seed test users in development/test environments
    * Creates alice and bob if they don't already exist
    * 

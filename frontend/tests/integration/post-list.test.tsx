@@ -1,20 +1,16 @@
 /**
  * Integration tests for post list page
  * Tests data fetching, rendering, and error handling
+ * 
+ * Note: We test HomePageClient directly since HomePage is a Server Component
+ * that can't be directly tested with React Testing Library
  */
 
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Home from '@/app/page';
+import HomePageClient from '@/components/HomePageClient';
 import type { Post } from '@/lib/types';
-import * as api from '@/lib/api';
-
-// Mock the API module
-jest.mock('@/lib/api', () => ({
-  ...jest.requireActual('@/lib/api'),
-  getPosts: jest.fn(),
-}));
 
 // Mock SWR to control its behavior
 jest.mock('swr', () => {
@@ -39,6 +35,7 @@ const mockPosts: Post[] = [
     body: 'This is the first test post content.',
     createdAt: '2025-11-27T10:00:00Z',
     updatedAt: '2025-11-27T10:00:00Z',
+    ownerId: 1,
   },
   {
     id: 2,
@@ -47,6 +44,7 @@ const mockPosts: Post[] = [
     body: 'This is the second test post content.',
     createdAt: '2025-11-26T10:00:00Z',
     updatedAt: '2025-11-26T10:00:00Z',
+    ownerId: 1,
   },
 ];
 
@@ -64,7 +62,7 @@ describe('Home Page Integration', () => {
       mutate: jest.fn(),
     } as any);
 
-    render(<Home />);
+    render(<HomePageClient initialPosts={[]} />);
 
     await waitFor(() => {
       expect(screen.getByText('Integration Test Post 1')).toBeInTheDocument();
@@ -82,7 +80,7 @@ describe('Home Page Integration', () => {
       mutate: jest.fn(),
     } as any);
 
-    render(<Home />);
+    render(<HomePageClient initialPosts={[]} />);
 
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
@@ -96,7 +94,7 @@ describe('Home Page Integration', () => {
       mutate: jest.fn(),
     } as any);
 
-    render(<Home />);
+    render(<HomePageClient initialPosts={[]} />);
 
     await waitFor(() => {
       expect(screen.getByText(/no posts/i)).toBeInTheDocument();
@@ -113,7 +111,7 @@ describe('Home Page Integration', () => {
       mutate: jest.fn(),
     } as any);
 
-    render(<Home />);
+    render(<HomePageClient initialPosts={[]} />);
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -130,7 +128,7 @@ describe('Home Page Integration', () => {
       mutate: mutateFn,
     } as any);
 
-    render(<Home />);
+    render(<HomePageClient initialPosts={[]} />);
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -141,7 +139,7 @@ describe('Home Page Integration', () => {
     expect(retryButton).toBeInTheDocument();
   });
 
-  it('renders page with correct metadata', () => {
+  it('renders posts list component', () => {
     mockUseSWR.mockReturnValue({
       data: mockPosts,
       error: undefined,
@@ -150,23 +148,24 @@ describe('Home Page Integration', () => {
       mutate: jest.fn(),
     } as any);
 
-    render(<Home />);
-    // Page should have heading
-    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    render(<HomePageClient initialPosts={[]} />);
+    // Posts should be rendered
+    expect(screen.getByText('Integration Test Post 1')).toBeInTheDocument();
   });
 
-  it('displays create new post button', () => {
+  it('uses initial posts when SWR has not loaded yet', () => {
     mockUseSWR.mockReturnValue({
-      data: mockPosts,
+      data: undefined,
       error: undefined,
       isLoading: false,
       isValidating: false,
       mutate: jest.fn(),
     } as any);
 
-    render(<Home />);
+    render(<HomePageClient initialPosts={mockPosts} />);
     
-    const createButton = screen.getByRole('link', { name: /create new blog post/i });
-    expect(createButton).toHaveAttribute('href', '/posts/new');
+    // Should show initial posts
+    expect(screen.getByText('Integration Test Post 1')).toBeInTheDocument();
+    expect(screen.getByText('Integration Test Post 2')).toBeInTheDocument();
   });
 });

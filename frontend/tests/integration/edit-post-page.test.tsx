@@ -52,7 +52,7 @@ jest.mock('@/lib/api', () => ({
 
 // Mock auth functions - authenticated user who owns the post by default
 jest.mock('@/lib/auth', () => ({
-  getCurrentUser: jest.fn(() => ({ id: 1, username: 'alice' })),
+  getCurrentUser: jest.fn(() => ({ id: 1, email: 'alice@example.com' })),
   isAuthenticated: jest.fn(() => true),
   getToken: jest.fn(() => 'mock-token'),
   login: jest.fn(),

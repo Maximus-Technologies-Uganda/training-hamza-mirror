@@ -209,7 +209,7 @@ describe('Post Detail Page Integration', () => {
 
   it('renders edit link when user is owner', async () => {
     // Mock authenticated user who owns the post
-    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 1, username: 'alice' });
+    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 1, email: 'alice@example.com' });
     (authModule.isAuthenticated as jest.Mock).mockReturnValue(true);
     (authModule.getToken as jest.Mock).mockReturnValue('mock-token');
 

@@ -4,9 +4,14 @@ CLI applications and REST APIs to demonstrate testing, TDD, and production-ready
 
 ## 🚀 Live Demo
 
-**Frontend**: [https://maximus-technologies-uganda.github.io/training-hamza/](https://maximus-technologies-uganda.github.io/training-hamza/)
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Frontend (SSR)** | [Cloud Run Frontend](https://blog-frontend-prod-xxxxxxxxxx-uc.a.run.app) | Next.js SSR on Cloud Run |
+| **Backend API** | [Cloud Run API](https://blog-api-prod-xxxxxxxxxx-uc.a.run.app) | Fastify Blog API on Cloud Run |
+| **API Docs** | [Swagger UI](https://blog-api-prod-xxxxxxxxxx-uc.a.run.app/docs) | Interactive API documentation |
+| **Frontend (Static)** | [GitHub Pages](https://maximus-technologies-uganda.github.io/training-hamza/) | Static fallback (limited features) |
 
-> **Note**: The live demo connects to a running Blog API backend. For local development, see the [Run & Try](#run--try) section.
+> **Note**: Cloud Run URLs are private by default. Contact the team for access tokens or use local development.
 
 ---
 
@@ -14,10 +19,34 @@ CLI applications and REST APIs to demonstrate testing, TDD, and production-ready
 
 ### Environment Variables
 
+#### Backend (Blog API)
+
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | Yes | Base URL of the Blog Posts API for frontend | `http://localhost:3000` |
 | `PORT` | No | Port for the Blog API server | `3000` |
+| `NODE_ENV` | No | Environment mode (`development`, `production`, `test`) | `development` |
+| `JWT_SECRET` | Yes (prod) | Secret key for JWT token signing | Auto-generated in dev |
+| `DATABASE_URL` | No | SQLite database path | `./data/blog.db` |
+| `RATE_LIMIT_MAX` | No | Max requests per window | `100` |
+| `RATE_LIMIT_WINDOW` | No | Rate limit time window (ms) | `60000` |
+
+#### Frontend (Next.js)
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `NEXT_PUBLIC_API_URL` | Yes | Public API URL (browser calls) | `http://localhost:3000` |
+| `API_BASE_URL` | Yes (SSR) | Server-side API URL (not exposed to browser) | Same as `NEXT_PUBLIC_API_URL` |
+| `PORT` | No | Port for the Next.js server | `5000` |
+
+#### Cloud Run Deployment
+
+| Variable | Required | Description | Source |
+|----------|----------|-------------|--------|
+| `GCP_PROJECT_ID` | Yes | Google Cloud project ID | Terraform output |
+| `GCP_REGION` | Yes | Cloud Run region | Terraform output |
+| `GCP_ARTIFACT_REGISTRY` | Yes | Docker image registry URL | Terraform output |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Yes | WIF provider for GitHub Actions | Terraform output |
+| `GCP_SERVICE_ACCOUNT` | Yes | Service account for deployments | Terraform output |
 
 ### Quick Local Setup
 
@@ -35,7 +64,7 @@ node src/blog/server.js
 
 # Terminal 2: Start the Frontend (port 5000)
 cd frontend
-NEXT_PUBLIC_API_URL=http://localhost:3000 npm run dev
+NEXT_PUBLIC_API_URL=http://localhost:3000 API_BASE_URL=http://localhost:3000 npm run dev
 ```
 
 Open [http://localhost:5000](http://localhost:5000) in your browser.
@@ -49,6 +78,7 @@ This repository contains multiple projects demonstrating progressive complexity:
 1. **CLI Applications** (Chapter 1-4): Hello, Stopwatch, and Temperature converter CLIs
 2. **Blog Posts API** (Week 5): Production-shaped REST API with CRUD operations, validation, and error handling
 3. **Blog Frontend** (Chapter 6): Next.js frontend with full CRUD, accessibility, and testing
+4. **Blog Auth** (Chapter 7): JWT authentication and authorization for the Blog API
 
 ## Chapter 1 Summary
 

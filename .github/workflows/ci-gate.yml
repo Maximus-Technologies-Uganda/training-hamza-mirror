@@ -1,0 +1,310 @@
+# =============================================================================
+# GitHub Actions Workflow: CI Gate
+# =============================================================================
+# Comprehensive CI pipeline with SSR tests, coverage reporting, a11y artifacts,
+# and OpenAPI contract validation.
+#
+# Triggers:
+# - Pull requests to main/development branches
+# - Push to main/development branches
+#
+# Artifacts:
+# - coverage-frontend-next: Frontend coverage with summary.json
+# - a11y-frontend-next: Accessibility test results (HTML + JSON)
+# - contract-api: Spectral OpenAPI linting results
+# =============================================================================
+
+name: CI Gate
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================================
+  # Job 1: Backend Tests & Contract Validation
+  # ==========================================================================
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run backend tests with coverage
+        run: npm test -- --coverage
+      
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-backend
+          path: coverage/
+          retention-days: 7
+
+  # ==========================================================================
+  # Job 2: OpenAPI Linting (Spectral)
+  # ==========================================================================
+  openapi-lint:
+    name: OpenAPI Lint (Spectral)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Spectral CLI
+        run: npm install -g @stoplight/spectral-cli
+      
+      - name: Run Spectral lint
+        id: spectral
+        run: |
+          echo "## OpenAPI Lint Results (Spectral)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run Spectral and capture output
+          spectral lint specs/004-blog-auth/contracts/openapi.yaml \
+            --format stylish \
+            --format json \
+            --output.json spectral-results.json \
+            2>&1 | tee spectral-output.txt || true
+          
+          # Count errors and warnings
+          ERRORS=$(grep -c '"severity":0' spectral-results.json 2>/dev/null || echo "0")
+          WARNINGS=$(grep -c '"severity":1' spectral-results.json 2>/dev/null || echo "0")
+          
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Warnings | $WARNINGS |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$ERRORS" -eq "0" ]; then
+            echo "✅ **OpenAPI specification passes all error checks**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **OpenAPI specification has $ERRORS errors**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat spectral-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+      
+      - name: Upload contract-api artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contract-api
+          path: |
+            spectral-results.json
+            spectral-output.txt
+            specs/004-blog-auth/contracts/openapi.yaml
+          retention-days: 7
+
+  # ==========================================================================
+  # Job 3: Frontend Tests, Coverage & SSR Validation
+  # ==========================================================================
+  frontend:
+    name: Frontend Tests & SSR
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: TypeScript type-check
+        run: npm run type-check
+      
+      - name: Lint code
+        run: npm run lint
+      
+      - name: Run all tests with coverage (including SSR tests)
+        run: npm run test:coverage
+        env:
+          CI: true
+      
+      - name: Output coverage summary to step summary
+        id: coverage
+        run: |
+          echo "## Frontend Coverage Summary (frontend-next)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f coverage/coverage-summary.json ]; then
+            node -e "
+              const summary = require('./coverage/coverage-summary.json');
+              const total = summary.total;
+              
+              console.log('| Metric | Coverage | Threshold |');
+              console.log('|--------|----------|-----------|');
+              console.log('| Statements | ' + total.statements.pct + '% | ≥70% |');
+              console.log('| Branches | ' + total.branches.pct + '% | ≥70% |');
+              console.log('| Functions | ' + total.functions.pct + '% | ≥70% |');
+              console.log('| Lines | ' + total.lines.pct + '% | ≥70% |');
+              console.log('');
+              
+              const passed = total.statements.pct >= 70 && total.lines.pct >= 70;
+              if (passed) {
+                console.log('✅ **Coverage thresholds met**');
+              } else {
+                console.log('⚠️ **Coverage below 70% threshold**');
+              }
+            " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Coverage summary not available" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Build application (SSR mode)
+        run: npm run build
+        env:
+          API_BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+      
+      - name: Upload coverage-frontend-next artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-frontend-next
+          path: |
+            frontend/coverage/
+            frontend/coverage/coverage-summary.json
+          retention-days: 7
+
+  # ==========================================================================
+  # Job 4: Accessibility Tests
+  # ==========================================================================
+  a11y:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run a11y tests with HTML reporter
+        run: |
+          mkdir -p a11y-results
+          mkdir -p test-reports
+          npm run test:a11y -- --json --outputFile=a11y-results/a11y-results.json 2>&1 | tee a11y-results/a11y-output.txt || true
+      
+      - name: Upload a11y-frontend-next artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: a11y-frontend-next
+          path: |
+            frontend/a11y-results/
+            frontend/test-reports/a11y-report.html
+          retention-days: 7
+
+  # ==========================================================================
+  # Job 5: Contract Tests (Newman/Postman)
+  # ==========================================================================
+  contract-tests:
+    name: Contract Tests (Newman)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Start Blog API Server
+        run: npm run dev &
+        env:
+          NODE_ENV: test
+      
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000/health -t 60000
+      
+      - name: Run Newman contract tests
+        run: |
+          npx newman run docs/blog-posts-api.postman_collection.json \
+            --env-var baseUrl=http://localhost:3000 \
+            --reporters cli,json \
+            --reporter-json-export newman-results.json
+      
+      - name: Output contract test summary
+        if: always()
+        run: |
+          echo "## Contract Test Results (Newman)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f newman-results.json ]; then
+            node -e "
+              const results = JSON.parse(require('fs').readFileSync('newman-results.json', 'utf8'));
+              const run = results.run;
+              console.log('| Metric | Count |');
+              console.log('|--------|-------|');
+              console.log('| Total Requests | ' + run.stats.requests.total + ' |');
+              console.log('| Assertions | ' + run.stats.assertions.total + ' |');
+              console.log('| Failed | ' + run.stats.assertions.failed + ' |');
+              console.log('');
+              if (run.stats.assertions.failed === 0) {
+                console.log('✅ **All contract tests passed**');
+              } else {
+                console.log('❌ **' + run.stats.assertions.failed + ' assertions failed**');
+              }
+            " >> $GITHUB_STEP_SUMMARY
+          fi

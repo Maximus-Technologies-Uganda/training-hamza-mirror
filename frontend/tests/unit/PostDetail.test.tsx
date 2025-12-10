@@ -115,7 +115,7 @@ describe('PostDetail', () => {
 
   it('renders edit link when user is owner', () => {
     // Mock authenticated user who owns the post
-    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 1, username: 'alice' });
+    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 1, email: 'alice@example.com' });
     (authModule.isAuthenticated as jest.Mock).mockReturnValue(true);
     (authModule.getToken as jest.Mock).mockReturnValue('mock-token');
 
@@ -126,7 +126,7 @@ describe('PostDetail', () => {
 
   it('does not render edit link when user is not owner', () => {
     // User is authenticated but doesn't own the post
-    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 2, username: 'bob' });
+    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 2, email: 'bob@example.com' });
     (authModule.isAuthenticated as jest.Mock).mockReturnValue(true);
     (authModule.getToken as jest.Mock).mockReturnValue('mock-token');
 
@@ -136,7 +136,7 @@ describe('PostDetail', () => {
 
   it('renders delete button when user is owner', () => {
     // Mock authenticated user who owns the post
-    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 1, username: 'alice' });
+    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 1, email: 'alice@example.com' });
     (authModule.isAuthenticated as jest.Mock).mockReturnValue(true);
     (authModule.getToken as jest.Mock).mockReturnValue('mock-token');
 

@@ -113,6 +113,29 @@ export class ApiError extends Error {
   isServerError(): boolean {
     return this.statusCode >= 500 && this.statusCode < 600;
   }
+
+  /**
+   * Check if this is a rate limit error (429)
+   */
+  isRateLimitError(): boolean {
+    return this.statusCode === 429;
+  }
+
+  /**
+   * Get retry-after value in seconds from error details
+   * Returns null if not a rate limit error or retryAfter not provided
+   */
+  getRetryAfter(): number | null {
+    if (!this.isRateLimitError()) {
+      return null;
+    }
+    // Try to extract retryAfter from error body (new nested format)
+    const match = this.message.match(/wait (\d+) seconds/);
+    if (match) {
+      return parseInt(match[1], 10);
+    }
+    return null;
+  }
 }
 
 /**

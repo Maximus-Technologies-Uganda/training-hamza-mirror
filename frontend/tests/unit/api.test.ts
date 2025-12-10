@@ -20,6 +20,16 @@ import {
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// Mock firebase module to prevent actual Firebase calls
+jest.mock('@/lib/firebase', () => ({
+  getIdToken: jest.fn().mockResolvedValue('mock-firebase-token'),
+  auth: null,
+  signInWithEmail: jest.fn(),
+  signOut: jest.fn(),
+  subscribeToAuthChanges: jest.fn(),
+  isAdmin: jest.fn(),
+}));
+
 /**
  * Helper to create a properly mocked Response object
  * The api.ts uses response.text() and response.headers.get() instead of response.json()
@@ -47,6 +57,12 @@ function createMockResponse(data: unknown, options: { ok?: boolean; status?: num
 describe('API Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Set a CSRF token cookie so getCSRFToken() returns a value
+    // and the CSRF bootstrap fetch is skipped
+    Object.defineProperty(document, 'cookie', {
+      writable: true,
+      value: 'csrf_token=test-csrf-token',
+    });
   });
 
   describe('API_BASE_URL', () => {

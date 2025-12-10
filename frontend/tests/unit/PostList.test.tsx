@@ -18,6 +18,7 @@ describe('PostList', () => {
       body: 'First post content',
       createdAt: '2025-11-27T10:00:00Z',
       updatedAt: '2025-11-27T10:00:00Z',
+      ownerId: 1,
     },
     {
       id: 2,
@@ -26,6 +27,7 @@ describe('PostList', () => {
       body: 'Second post content',
       createdAt: '2025-11-26T10:00:00Z',
       updatedAt: '2025-11-26T10:00:00Z',
+      ownerId: 1,
     },
     {
       id: 3,
@@ -34,6 +36,7 @@ describe('PostList', () => {
       body: 'Third post content',
       createdAt: '2025-11-25T10:00:00Z',
       updatedAt: '2025-11-25T10:00:00Z',
+      ownerId: 1,
     },
   ];
 
@@ -83,6 +86,7 @@ describe('PostList', () => {
       body: `Content ${i}`,
       createdAt: '2025-11-27T10:00:00Z',
       updatedAt: '2025-11-27T10:00:00Z',
+      ownerId: 1,
     }));
     render(<PostList posts={manyPosts} />);
     expect(screen.getByText('Post 0')).toBeInTheDocument();

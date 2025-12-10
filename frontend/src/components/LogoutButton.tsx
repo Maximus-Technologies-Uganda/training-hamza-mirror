@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/AuthProvider';
+import { useAuth, getUserDisplayName } from '@/components/AuthProvider';
 
 /**
  * Props for LogoutButton component
@@ -64,7 +64,7 @@ export function LogoutButton({
     <div className={`flex items-center gap-3 ${className}`}>
       {showUsername && (
         <span className="text-sm text-gray-600">
-          Signed in as <strong className="font-medium text-gray-900">{user.username}</strong>
+          Signed in as <strong className="font-medium text-gray-900">{getUserDisplayName(user)}</strong>
         </span>
       )}
       <button

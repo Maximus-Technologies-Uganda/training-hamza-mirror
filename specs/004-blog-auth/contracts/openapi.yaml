@@ -24,10 +24,15 @@ info:
   contact:
     name: Training Project
     url: https://github.com/Maximus-Technologies-Uganda/training-hamza
+  license:
+    name: ISC
+    url: https://opensource.org/licenses/ISC
 
 servers:
   - url: http://localhost:3000
     description: Local development server
+  - url: https://blog-api-dev-xxxxxxxxxx-uc.a.run.app
+    description: Cloud Run development environment
 
 tags:
   - name: auth
@@ -296,7 +301,7 @@ components:
               requestId: 550e8400-e29b-41d4-a716-446655440000
 
     ValidationError:
-      description: Request validation failed
+      description: Request validation failed (400 - malformed request)
       headers:
         X-Request-Id:
           schema:
@@ -306,6 +311,33 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+
+    UnprocessableEntity:
+      description: Request understood but semantically invalid (422 - business rule violation)
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            duplicateSlug:
+              summary: Duplicate slug
+              value:
+                error:
+                  code: DUPLICATE_SLUG
+                  message: A post with this slug already exists
+                  requestId: 550e8400-e29b-41d4-a716-446655440000
+            invalidContent:
+              summary: Invalid content
+              value:
+                error:
+                  code: UNPROCESSABLE_ENTITY
+                  message: Post content violates content policy
+                  requestId: 550e8400-e29b-41d4-a716-446655440000
 
     NotFound:
       description: Resource not found

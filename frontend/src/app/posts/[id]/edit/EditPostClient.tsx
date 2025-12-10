@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { usePost } from '@/lib/hooks/usePost';
 import PostForm from '@/components/PostForm';
 import ErrorMessage from '@/components/ErrorMessage';
-import { useAuth } from '@/components/AuthProvider';
+import { useAuth, getUserId } from '@/components/AuthProvider';
 import { isApiError } from '@/lib/api';
 
 interface EditPostClientProps {
@@ -26,7 +26,7 @@ export default function EditPostClient({ id }: EditPostClientProps) {
   const router = useRouter();
   
   const { post, isLoading: postLoading, isError } = usePost(postId);
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
 
   // Combined loading state
   const isLoading = postLoading || authLoading;
@@ -39,8 +39,9 @@ export default function EditPostClient({ id }: EditPostClientProps) {
     }
   }, [isLoading, isNotFoundError, post, postLoading, router]);
 
-  // Check if current user is the owner of this post
-  const isOwner = isAuthenticated && user?.id === post?.ownerId;
+  // Check if current user is the owner of this post OR is an admin
+  const isOwner = isAuthenticated && getUserId(user) === post?.ownerId;
+  const canModify = isOwner || isAdmin;
 
   // Redirect to login if not authenticated (after loading completes)
   useEffect(() => {
@@ -122,8 +123,8 @@ export default function EditPostClient({ id }: EditPostClientProps) {
     );
   }
 
-  // Handle unauthorized state (not the owner)
-  if (!isOwner) {
+  // Handle unauthorized state (not the owner or admin)
+  if (!canModify) {
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
@@ -146,7 +147,7 @@ export default function EditPostClient({ id }: EditPostClientProps) {
               Permission Denied
             </h2>
             <p className="text-yellow-700 mb-4">
-              You can only edit posts that you created.
+              You can only edit posts that you created or have admin access to.
             </p>
             <Link
               href={`/posts/${post.id}`}

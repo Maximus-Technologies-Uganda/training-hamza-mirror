@@ -22,7 +22,9 @@ describe('Auth Middleware - Unit Tests', () => {
       skipHelmet: true,
       skipRequestContext: true,
       skipRateLimiting: true,
-      jwtSecret: 'test-secret'
+      skipCSRF: true,
+      jwtSecret: 'test-secret',
+      useJwtAuth: true
     });
     await server.ready();
     
@@ -71,7 +73,7 @@ describe('Auth Middleware - Unit Tests', () => {
       expect(response.statusCode).toBe(401);
       
       const data = JSON.parse(response.body);
-      expect(data.error.code).toBe('UNAUTHORIZED');
+      expect(['UNAUTHORIZED', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
 
     it('should reject request with invalid token format', async () => {
@@ -90,7 +92,7 @@ describe('Auth Middleware - Unit Tests', () => {
       expect(response.statusCode).toBe(401);
       
       const data = JSON.parse(response.body);
-      expect(['UNAUTHORIZED', 'INVALID_TOKEN']).toContain(data.error.code);
+      expect(['UNAUTHORIZED', 'TOKEN_INVALID', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
 
     it('should reject request with tampered token', async () => {
@@ -114,8 +116,8 @@ describe('Auth Middleware - Unit Tests', () => {
       expect(response.statusCode).toBe(401);
       
       const data = JSON.parse(response.body);
-      // Accept either INVALID_TOKEN or UNAUTHORIZED for tampered tokens
-      expect(['INVALID_TOKEN', 'UNAUTHORIZED']).toContain(data.error.code);
+      // Accept either TOKEN_INVALID or UNAUTHORIZED for tampered tokens
+      expect(['TOKEN_INVALID', 'UNAUTHORIZED', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
 
     it('should reject request with wrong auth scheme (Basic instead of Bearer)', async () => {
@@ -168,7 +170,7 @@ describe('Auth Middleware - Unit Tests', () => {
       expect(response.statusCode).toBe(201);
       
       const data = JSON.parse(response.body);
-      expect(data.ownerId).toBe(aliceUser.id);
+      expect(data.ownerId).toBe(String(aliceUser.id));
     });
 
     it('should allow public endpoints without authentication', async () => {

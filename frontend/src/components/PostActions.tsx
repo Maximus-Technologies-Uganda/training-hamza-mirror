@@ -8,7 +8,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from './AuthProvider';
+import { useAuth, getUserId } from './AuthProvider';
 import type { Post } from '@/lib/types';
 
 interface PostActionsProps {
@@ -21,17 +21,20 @@ interface PostActionsProps {
 }
 
 /**
- * PostActions renders Edit and Delete buttons based on ownership.
- * Only shows action buttons if the current user owns the post.
+ * PostActions renders Edit and Delete buttons based on ownership or admin role.
+ * Shows action buttons if the current user owns the post OR is an admin.
  */
 export default function PostActions({ post, onDelete, isDeleting = false }: PostActionsProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth();
 
   // Check if current user is the owner of this post
-  const isOwner = isAuthenticated && user?.id === post.ownerId;
+  const isOwner = isAuthenticated && getUserId(user) === post.ownerId;
+  
+  // Check if user can modify (owner OR admin)
+  const canModify = isOwner || isAdmin;
 
-  // Don't render anything if user doesn't own the post
-  if (!isOwner) {
+  // Don't render anything if user cannot modify the post
+  if (!canModify) {
     return null;
   }
 

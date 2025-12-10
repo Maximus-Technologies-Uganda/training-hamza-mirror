@@ -1,0 +1,74 @@
+# Spectral OpenAPI Linting Configuration
+# 
+# This configuration extends the standard OAS ruleset with
+# additional rules for API hygiene and documentation quality.
+#
+# Run: npm run lint:openapi
+# CI: Spectral results uploaded as contract-api artifact
+
+extends:
+  - "spectral:oas"
+
+# Custom rule overrides
+rules:
+  # ===== REQUIRED (errors) =====
+  
+  # Every operation must have operationId
+  operation-operationId: error
+  
+  # Every operation must have at least one tag
+  operation-tags: error
+  
+  # Info object must have contact information
+  info-contact: error
+  
+  # Operations should have descriptions
+  operation-description: warn
+  
+  # Operations should have summaries
+  operation-summary: warn
+
+  # ===== RECOMMENDED (warnings) =====
+  
+  # Parameters should have descriptions
+  oas3-parameter-description: warn
+  
+  # Schema properties should have descriptions  
+  oas3-schema-description: warn
+  
+  # Request bodies should have descriptions
+  oas3-request-body-description: warn
+  
+  # Responses should have descriptions (already enforced)
+  # oas3-response-description: warn
+
+  # ===== DOCUMENTATION QUALITY =====
+  
+  # Info should have license
+  info-license: warn
+  
+  # Info should have terms of service (optional)
+  info-terms-of-service: off
+
+  # ===== SECURITY =====
+  
+  # Operations should declare security (or have global security)
+  # Disabled because read operations are intentionally public
+  operation-security-defined: off
+
+  # ===== PATH & NAMING =====
+  
+  # Path parameters should be camelCase
+  # path-params: warn
+  
+  # Paths should not have trailing slashes
+  path-not-end-slash: error
+  
+  # Paths should not have duplicate forward slashes
+  path-not-include-query: error
+
+# Formats to validate
+formats:
+  - oas3
+  - oas3.0
+  - oas3.1

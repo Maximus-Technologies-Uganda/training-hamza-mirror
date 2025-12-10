@@ -1,19 +1,57 @@
-'use client';
-
 /**
- * Homepage - View All Blog Posts
- * Displays list of all published blog posts
+ * Homepage - View All Blog Posts (Server Component with SSR)
+ * 
+ * This is a Server Component that fetches posts on the server
+ * for first-paint SSR. The data is passed to client components
+ * for interactivity.
  */
 
-import { usePosts } from '@/lib/hooks/usePosts';
+import { Suspense } from 'react';
+import Link from 'next/link';
 import PostList from '@/components/PostList';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
-import ErrorMessage from '@/components/ErrorMessage';
-import Link from 'next/link';
+import HomePageClient from '@/components/HomePageClient';
+import type { Post } from '@/lib/types';
+
+// Server-side API URL (not exposed to browser)
+const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+/**
+ * Fetch posts on the server for SSR first-paint
+ */
+async function getPosts(): Promise<Post[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/posts`, {
+      headers: {
+        'Accept': 'application/json',
+      },
+      // Revalidate every 60 seconds (ISR)
+      next: { revalidate: 60 },
+    });
+
+    if (!response.ok) {
+      console.error(`[SSR] Failed to fetch posts: ${response.status}`);
+      return [];
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[SSR] Error fetching posts:', error);
+    return [];
+  }
+}
+
+/**
+ * Server-rendered posts list component
+ */
+async function PostsSection() {
+  const posts = await getPosts();
+  
+  // Pass server-fetched data to client component for interactivity (SWR hydration)
+  return <HomePageClient initialPosts={posts} />;
+}
 
 export default function HomePage() {
-  const { posts, isLoading, isError, mutate } = usePosts();
-
   return (
     <div>
       <header className="mb-8 flex items-center justify-between">
@@ -32,16 +70,10 @@ export default function HomePage() {
         </Link>
       </header>
 
-      {isLoading && <LoadingSkeleton />}
-      
-      {isError && (
-        <ErrorMessage
-          message={isError.message || 'Failed to load blog posts. Please try again.'}
-          onRetry={() => mutate()}
-        />
-      )}
-
-      {!isLoading && !isError && posts && <PostList posts={posts} />}
+      {/* SSR with Suspense fallback */}
+      <Suspense fallback={<LoadingSkeleton />}>
+        <PostsSection />
+      </Suspense>
     </div>
   );
 }

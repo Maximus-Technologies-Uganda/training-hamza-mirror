@@ -9,6 +9,7 @@
 
 import type { Post, CreatePostInput, UpdatePostInput, HealthStatus } from './types';
 import { getAuthHeaders } from './auth';
+import { getIdToken } from './firebase';
 import { API_BASE_URL } from './config';
 import { ApiError, isApiError, type FieldValidationError } from './api-errors';
 
@@ -29,9 +30,69 @@ function generateRequestId(): string {
 }
 
 /**
+ * Get CSRF token from cookie
+ * Used for CSRF protection on mutating requests
+ */
+function getCSRFToken(): string | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const cookies = document.cookie.split(';');
+  const csrfCookie = cookies.find(c => c.trim().startsWith('csrf_token='));
+  if (!csrfCookie) {
+    return null;
+  }
+  return csrfCookie.split('=')[1];
+}
+
+/**
+ * Ensure CSRF token cookie is present by calling the backend bootstrap endpoint
+ * Caches in-flight requests to avoid duplicate /csrf-token calls.
+ */
+let csrfBootstrapPromise: Promise<string | null> | null = null;
+async function ensureCSRFToken(): Promise<string | null> {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const existingToken = getCSRFToken();
+  if (existingToken) {
+    return existingToken;
+  }
+
+  if (!csrfBootstrapPromise) {
+    const requestId = generateRequestId();
+    csrfBootstrapPromise = (async () => {
+      const response = await fetch(`${API_BASE_URL}/csrf-token`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'X-Request-ID': requestId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch CSRF token (${response.status})`);
+      }
+
+      const body = await response.json().catch(() => ({}));
+      return body?.token || getCSRFToken();
+    })();
+  }
+
+  try {
+    return await csrfBootstrapPromise;
+  } catch (error) {
+    csrfBootstrapPromise = null; // Allow retry on next call
+    return null;
+  }
+}
+
+/**
  * Generic fetch wrapper with error handling
  * Throws ApiError on non-2xx responses
  * Automatically adds X-Request-ID header for request tracing
+ * Adds CSRF token header for mutating requests (POST, PATCH, PUT, DELETE)
  * 
  * @param endpoint - API endpoint path (e.g., '/posts')
  * @param options - Fetch options (method, headers, body)
@@ -44,14 +105,21 @@ export async function fetchApi<T>(
   const url = `${API_BASE_URL}${endpoint}`;
   const requestId = generateRequestId();
   
+  // Add CSRF token for mutating requests
+  const method = options?.method?.toUpperCase() || 'GET';
+  const isMutatingRequest = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
+  const csrfToken = isMutatingRequest ? await ensureCSRFToken() : null;
+  
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         'X-Request-ID': requestId,
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         ...options?.headers,
       },
+      credentials: options?.credentials ?? 'include',
     });
 
     // Handle non-JSON responses (e.g., 204 No Content, or empty body)
@@ -70,7 +138,19 @@ export async function fetchApi<T>(
     // Handle error responses - use fromResponse to capture full error structure
     // Backend returns nested format: { error: { code, message, validation, requestId } }
     if (!response.ok) {
-      throw ApiError.fromResponse(data, response.status);
+      const apiError = ApiError.fromResponse(data, response.status);
+      
+      // Enhance rate limit error messages with user-friendly guidance
+      if (apiError.isRateLimitError()) {
+        const retryAfter = apiError.getRetryAfter();
+        if (retryAfter !== null) {
+          apiError.message = `You've made too many requests. Please wait ${retryAfter} seconds before trying again.`;
+        } else {
+          apiError.message = 'You\'ve made too many requests. Please wait a moment before trying again.';
+        }
+      }
+      
+      throw apiError;
     }
 
     return data;
@@ -85,7 +165,7 @@ export async function fetchApi<T>(
       );
     }
     
-    // Re-throw ApiError as-is
+    // Re-throw ApiError as-is (including enhanced rate limit errors)
     if (error instanceof ApiError) {
       throw error;
     }
@@ -123,23 +203,30 @@ export async function getPost(id: number): Promise<Post> {
 
 /**
  * Create a new blog post
- * Requires authentication - includes Authorization header if token exists
+ * Requires authentication - includes Authorization header with Firebase ID token
  * 
  * @param input - Post title and body
  * @returns Created post with auto-generated fields
  * @throws ApiError on validation failure (400) or unauthorized (401)
  */
 export async function createPost(input: CreatePostInput): Promise<Post> {
+  const idToken = await getIdToken();
+  const headers: Record<string, string> = {};
+  
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  
   return fetchApi<Post>('/posts', {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers,
     body: JSON.stringify(input),
   });
 }
 
 /**
  * Update an existing blog post
- * Requires authentication - includes Authorization header if token exists
+ * Requires authentication - includes Authorization header with Firebase ID token
  * 
  * @param id - Post ID
  * @param input - Fields to update (partial)
@@ -150,24 +237,38 @@ export async function updatePost(
   id: number,
   input: UpdatePostInput
 ): Promise<Post> {
+  const idToken = await getIdToken();
+  const headers: Record<string, string> = {};
+  
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  
   return fetchApi<Post>(`/posts/${id}`, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
+    headers,
     body: JSON.stringify(input),
   });
 }
 
 /**
  * Delete a blog post
- * Requires authentication - includes Authorization header if token exists
+ * Requires authentication - includes Authorization header with Firebase ID token
  * 
  * @param id - Post ID
  * @throws ApiError on failure (404 if not found, 401/403 on auth error)
  */
 export async function deletePost(id: number): Promise<void> {
+  const idToken = await getIdToken();
+  const headers: Record<string, string> = {};
+  
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  
   return fetchApi<void>(`/posts/${id}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(),
+    headers,
   });
 }
 

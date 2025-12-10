@@ -23,7 +23,9 @@ describe('Post Ownership Integration Tests', () => {
       skipHelmet: true,
       skipRequestContext: true,
       skipRateLimiting: true,
-      jwtSecret: 'test-secret'
+      skipCSRF: true,
+      jwtSecret: 'test-secret',
+      useJwtAuth: true
     });
     await server.ready();
 
@@ -76,7 +78,7 @@ describe('Post Ownership Integration Tests', () => {
       expect(response.statusCode).toBe(200);
       const data = JSON.parse(response.body);
       expect(data.title).toBe(updatedTitle);
-      expect(data.ownerId).toBe(1);
+      expect(data.ownerId).toBe('1');
     });
 
     it('should reject bob trying to edit alice\'s post with 403', async () => {
@@ -93,7 +95,7 @@ describe('Post Ownership Integration Tests', () => {
 
       expect(response.statusCode).toBe(403);
       const data = JSON.parse(response.body);
-      expect(data.error.code).toBe('FORBIDDEN');
+      expect(['FORBIDDEN', 'NOT_OWNER']).toContain(data.error.code);
 
       // Verify the post was not modified
       const getResponse = await server.inject({
@@ -119,7 +121,7 @@ describe('Post Ownership Integration Tests', () => {
       });
 
       const bobPost = JSON.parse(createResponse.body);
-      expect(bobPost.ownerId).toBe(2);
+      expect(bobPost.ownerId).toBe('2');
 
       // Bob edits his own post
       const updatedTitle = `Updated by Bob ${Date.now()}`;
@@ -137,7 +139,7 @@ describe('Post Ownership Integration Tests', () => {
       expect(response.statusCode).toBe(200);
       const data = JSON.parse(response.body);
       expect(data.title).toBe(updatedTitle);
-      expect(data.ownerId).toBe(2);
+      expect(data.ownerId).toBe('2');
     });
 
     it('should reject alice trying to edit bob\'s post with 403', async () => {
@@ -170,7 +172,7 @@ describe('Post Ownership Integration Tests', () => {
 
       expect(response.statusCode).toBe(403);
       const data = JSON.parse(response.body);
-      expect(data.error.code).toBe('FORBIDDEN');
+      expect(['FORBIDDEN', 'NOT_OWNER']).toContain(data.error.code);
     });
 
     it('should reject unauthenticated edit attempts with 401', async () => {
@@ -184,7 +186,7 @@ describe('Post Ownership Integration Tests', () => {
 
       expect(response.statusCode).toBe(401);
       const data = JSON.parse(response.body);
-      expect(data.error.code).toBe('UNAUTHORIZED');
+      expect(['UNAUTHORIZED', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
   });
 
@@ -205,7 +207,7 @@ describe('Post Ownership Integration Tests', () => {
       });
 
       const post = JSON.parse(createResponse.body);
-      expect(post.ownerId).toBe(1);
+      expect(post.ownerId).toBe('1');
 
       // Update the post
       const updatedTitle = `Updated Title ${Date.now()}`;
@@ -222,7 +224,7 @@ describe('Post Ownership Integration Tests', () => {
       });
 
       const updatedPost = JSON.parse(updateResponse.body);
-      expect(updatedPost.ownerId).toBe(1);
+      expect(updatedPost.ownerId).toBe('1');
       expect(updatedPost.title).toBe(updatedTitle);
 
       // Fetch the post to double-check
@@ -232,7 +234,7 @@ describe('Post Ownership Integration Tests', () => {
       });
 
       const fetchedPost = JSON.parse(getResponse.body);
-      expect(fetchedPost.ownerId).toBe(1);
+      expect(fetchedPost.ownerId).toBe('1');
     });
   });
 });

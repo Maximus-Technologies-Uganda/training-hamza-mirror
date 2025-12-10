@@ -7,6 +7,9 @@
 
 import { PostService } from '../services/post-service.js';
 import { createPostSchema, updatePostSchema, postSchema } from '../models/post.js';
+import { validateCreatePost, formatZodErrors } from '../models/post.zod.js';
+import { ValidationError } from '../middleware/error-handler.js';
+import { AuditTargetType, AuditAction } from '../services/audit-service.js';
 
 /**
  * Register posts routes
@@ -16,9 +19,15 @@ export async function postsRoutes(fastify) {
   // Initialize PostService with storage adapter
   const postService = new PostService(fastify.storage);
 
-  // POST /posts - Create a new post (requires authentication)
+  // POST /posts - Create a new post (requires authentication, CSRF protection, with audit logging and mutation rate limiting)
   fastify.post('/posts', {
-    preHandler: [fastify.authenticate],
+    config: {
+      rateLimit: fastify.mutationRateLimitConfig
+    },
+    preHandler: [
+      fastify.verifyFirebaseToken,
+      fastify.requireCSRF
+    ],
     schema: {
       description: 'Create a new blog post',
       tags: ['posts'],
@@ -28,9 +37,30 @@ export async function postsRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    // Extract user ID from JWT token for ownership
-    const ownerId = request.user.id;
-    const post = await postService.createPost({ ...request.body, ownerId });
+    // Validate input with Zod
+    const validationResult = validateCreatePost(request.body);
+    if (!validationResult.success) {
+      const zodErrors = formatZodErrors(validationResult.error);
+      const message = zodErrors.map(({ field, message }) => `${field}: ${message}`).join(', ');
+      throw new ValidationError(message, null, zodErrors);
+    }
+
+    // Extract user UID from Firebase token for ownership
+    const ownerId = request.firebaseUser.uid;
+    
+    // Create post
+    const post = await postService.createPost({ 
+      ...validationResult.data, 
+      ownerId 
+    });
+    
+    // Log audit entry for post creation
+    request.auditCreate(
+      AuditTargetType.POST,
+      post.id,
+      { title: post.title, slug: post.slug }
+    );
+    
     reply.code(201).send(post);
   });
 
@@ -76,9 +106,19 @@ export async function postsRoutes(fastify) {
     return post;
   });
 
-  // PATCH /posts/:id - Update an existing post (requires authentication + ownership)
+  // PATCH /posts/:id - Update an existing post (requires authentication, ownership or admin, CSRF protection, with audit logging and mutation rate limiting)
   fastify.patch('/posts/:id', {
-    preHandler: [fastify.authenticate],
+    config: {
+      rateLimit: fastify.mutationRateLimitConfig
+    },
+    preHandler: [
+      fastify.verifyFirebaseToken,
+      fastify.requireOwnerOrAdmin(async (request) => {
+        const post = await postService.getPostById(request.params.id);
+        return post?.ownerId;
+      }),
+      fastify.requireCSRF
+    ],
     schema: {
       description: 'Update an existing blog post',
       tags: ['posts'],
@@ -99,15 +139,41 @@ export async function postsRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    // Extract user ID from JWT token for ownership check
-    const userId = request.user.id;
-    const post = await postService.updatePost(request.params.id, request.body, userId);
-    return post;
+    // Get post before update for audit logging
+    const postId = request.params.id;
+    const beforePost = await postService.getPostById(postId);
+    
+    if (!beforePost) {
+      return reply.code(404).send({ message: 'Not Found' });
+    }
+    
+    // Update post (ownership already verified by middleware)
+    const updatedPost = await postService.updatePost(postId, request.body);
+    
+    // Log audit entry for post update
+    request.auditUpdate(
+      AuditTargetType.POST,
+      postId,
+      { title: beforePost.title, body: beforePost.body },
+      { title: updatedPost.title, body: updatedPost.body }
+    );
+    
+    return updatedPost;
   });
 
-  // DELETE /posts/:id - Delete a post (requires authentication + ownership)
+  // DELETE /posts/:id - Delete a post (requires authentication, ownership or admin, CSRF protection, with audit logging and mutation rate limiting)
   fastify.delete('/posts/:id', {
-    preHandler: [fastify.authenticate],
+    config: {
+      rateLimit: fastify.mutationRateLimitConfig
+    },
+    preHandler: [
+      fastify.verifyFirebaseToken,
+      fastify.requireOwnerOrAdmin(async (request) => {
+        const post = await postService.getPostById(request.params.id);
+        return post?.ownerId;
+      }),
+      fastify.requireCSRF
+    ],
     schema: {
       description: 'Delete a blog post',
       tags: ['posts'],
@@ -130,9 +196,25 @@ export async function postsRoutes(fastify) {
       }
     }
   }, async (request, reply) => {
-    // Extract user ID from JWT token for ownership check
-    const userId = request.user.id;
-    await postService.deletePost(request.params.id, userId);
+    const postId = request.params.id;
+    
+    // Get post before deletion for audit logging
+    const post = await postService.getPostById(postId);
+    
+    if (!post) {
+      return reply.code(404).send({ message: 'Not Found' });
+    }
+    
+    // Delete post (ownership already verified by middleware)
+    await postService.deletePost(postId);
+    
+    // Log audit entry for post deletion
+    request.auditDelete(
+      AuditTargetType.POST,
+      postId,
+      { title: post.title, slug: post.slug }
+    );
+    
     reply.code(204).send();
   });
 }

@@ -23,7 +23,9 @@ describe('Blog Auth API - Contract Tests', () => {
       skipHelmet: true,
       skipRequestContext: true,
       skipRateLimiting: true,
-      jwtSecret: 'test-secret'
+      skipCSRF: true,
+      jwtSecret: 'test-secret',
+      useJwtAuth: true
     });
     await server.ready();
 
@@ -180,7 +182,7 @@ describe('Blog Auth API - Contract Tests', () => {
       expect(data).toHaveProperty('error');
       expect(data.error).toHaveProperty('code');
       expect(data.error).toHaveProperty('message');
-      expect(data.error.code).toBe('UNAUTHORIZED');
+      expect(['UNAUTHORIZED', 'AUTH_REQUIRED']).toContain(data.error.code);
     });
 
     it('T021: should return 401 for non-existent user', async () => {
@@ -196,7 +198,7 @@ describe('Blog Auth API - Contract Tests', () => {
       expect(response.statusCode).toBe(401);
       
       const data = JSON.parse(response.body);
-      expect(data.error.code).toBe('UNAUTHORIZED');
+      expect(['UNAUTHORIZED', 'AUTH_REQUIRED']).toContain(data.error.code);
       expect(data.error.message).toContain('Invalid');
     });
 

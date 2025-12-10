@@ -72,6 +72,7 @@ const mockPost: Post = {
   body: 'Original post body content that will be edited.',
   createdAt: '2025-11-20T10:00:00Z',
   updatedAt: '2025-11-27T15:30:00Z',
+  ownerId: 1,
 };
 
 // We'll test the edit page component

@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2025-11-24
 ## Active Technologies
 - Node.js 20+ (ES Modules), TypeScript 5.5+ (frontend) + Fastify 4.x, jsonwebtoken, bcrypt (API); Next.js 14, react-hook-form, swr (frontend) (004-blog-auth)
 - Memory/SQLite/Firestore (existing adapters extended with User entity) (004-blog-auth)
+- JavaScript (Node.js 18+, ES Modules) / TypeScript 5.5 (Frontend) (005-auth-roles-hardening)
+- SQLite (better-sqlite3) for development/production, Memory storage for tests (005-auth-roles-hardening)
 
 ### Frontend (003-frontend-blog-integration)
 - **Framework**: Next.js 14.2+ with App Router, React 18.3+, TypeScript 5.5+ (strict mode)
@@ -88,6 +90,7 @@ npm run test:coverage # Coverage report
 - Semantic HTML with ARIA labels for accessibility
 
 ## Recent Changes
+- 005-auth-roles-hardening: Added JavaScript (Node.js 18+, ES Modules) / TypeScript 5.5 (Frontend)
 - 004-blog-auth: Added Node.js 20+ (ES Modules), TypeScript 5.5+ (frontend) + Fastify 4.x, jsonwebtoken, bcrypt (API); Next.js 14, react-hook-form, swr (frontend)
 
 ### November 27, 2025 - Feature 003 Planning Complete
@@ -99,7 +102,6 @@ npm run test:coverage # Coverage report
   - Documentation: Complete spec, plan, research, data-model, contracts, quickstart
 
 ### November 24-27, 2025 - Feature 002 Complete
-- **002-blog-api**: Production REST API with Fastify, SQLite, OpenAPI 3.1, comprehensive testing
   - Full CRUD operations for blog posts
   - Automatic slug generation, rate limiting, health check
   - Contract tests with OpenAPI validation

@@ -4,11 +4,13 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import '@testing-library/jest-dom';
 import DeleteConfirm from '@/components/DeleteConfirm';
+
+expect.extend(toHaveNoViolations);
 
 describe('DeleteConfirm Accessibility', () => {
   const defaultProps = {
@@ -23,68 +25,50 @@ describe('DeleteConfirm Accessibility', () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   describe('WCAG 2.1 AA Compliance', () => {
     it('should have no accessibility violations in default state', async () => {
-      let container: HTMLElement;
-      await act(async () => {
-        const result = render(<DeleteConfirm {...defaultProps} />);
-        container = result.container;
-      });
-      const results = await axe(container!);
+      const { container } = render(<DeleteConfirm {...defaultProps} />);
+      const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('should have no accessibility violations in loading state', async () => {
-      let container: HTMLElement;
-      await act(async () => {
-        const result = render(<DeleteConfirm {...defaultProps} isLoading={true} />);
-        container = result.container;
-      });
-      const results = await axe(container!);
+      const { container } = render(<DeleteConfirm {...defaultProps} isLoading={true} />);
+      const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('should have no accessibility violations in error state', async () => {
-      let container: HTMLElement;
-      await act(async () => {
-        const result = render(<DeleteConfirm {...defaultProps} error="Deletion failed" />);
-        container = result.container;
-      });
-      const results = await axe(container!);
+      const { container } = render(<DeleteConfirm {...defaultProps} error="Deletion failed" />);
+      const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('should have no accessibility violations when closed', async () => {
-      let container: HTMLElement;
-      await act(async () => {
-        const result = render(<DeleteConfirm {...defaultProps} isOpen={false} />);
-        container = result.container;
-      });
-      const results = await axe(container!);
+      const { container } = render(<DeleteConfirm {...defaultProps} isOpen={false} />);
+      const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
   });
 
   describe('Dialog ARIA attributes', () => {
     it('has role="dialog"', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     it('has aria-modal="true"', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveAttribute('aria-modal', 'true');
     });
 
     it('has aria-labelledby pointing to the title', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       const dialog = screen.getByRole('dialog');
       const labelledBy = dialog.getAttribute('aria-labelledby');
       
@@ -94,9 +78,7 @@ describe('DeleteConfirm Accessibility', () => {
     });
 
     it('has aria-describedby pointing to the description', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       const dialog = screen.getByRole('dialog');
       const describedBy = dialog.getAttribute('aria-describedby');
       
@@ -108,9 +90,7 @@ describe('DeleteConfirm Accessibility', () => {
 
   describe('Focus management', () => {
     it('moves focus into the dialog when opened', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         // First focusable element (Cancel button) should be focused
@@ -121,9 +101,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('traps focus within the dialog', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
@@ -140,9 +118,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('supports Shift+Tab navigation', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
@@ -160,20 +136,14 @@ describe('DeleteConfirm Accessibility', () => {
       document.body.appendChild(triggerButton);
       triggerButton.focus();
 
-      let rerender: (ui: React.ReactElement) => void;
-      await act(async () => {
-        const result = render(<DeleteConfirm {...defaultProps} />);
-        rerender = result.rerender;
-      });
+      const { rerender } = render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
       });
 
       // Close the dialog
-      await act(async () => {
-        rerender!(<DeleteConfirm {...defaultProps} isOpen={false} />);
-      });
+      rerender(<DeleteConfirm {...defaultProps} isOpen={false} />);
 
       // Note: In real implementation, focus should return to trigger
       document.body.removeChild(triggerButton);
@@ -183,9 +153,7 @@ describe('DeleteConfirm Accessibility', () => {
   describe('Keyboard support', () => {
     it('closes dialog with Escape key', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await user.keyboard('{Escape}');
       
@@ -194,9 +162,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('does not close with Escape when loading', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} isLoading={true} />);
-      });
+      render(<DeleteConfirm {...defaultProps} isLoading={true} />);
       
       await user.keyboard('{Escape}');
       
@@ -205,9 +171,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('activates Cancel button with Enter key', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
@@ -220,9 +184,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('activates Cancel button with Space key', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
@@ -235,9 +197,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('activates Delete button with Enter key', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
@@ -251,9 +211,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('activates Delete button with Space key', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
@@ -268,23 +226,17 @@ describe('DeleteConfirm Accessibility', () => {
 
   describe('Button accessibility', () => {
     it('Cancel button has accessible name', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
 
     it('Delete button has accessible name', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       expect(screen.getByRole('button', { name: /delete|confirm/i })).toBeInTheDocument();
     });
 
     it('loading button indicates loading state accessibly', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} isLoading={true} />);
-      });
+      render(<DeleteConfirm {...defaultProps} isLoading={true} />);
       
       const loadingButton = screen.getByRole('button', { name: /deleting/i });
       expect(loadingButton).toBeDisabled();
@@ -292,9 +244,7 @@ describe('DeleteConfirm Accessibility', () => {
     });
 
     it('buttons have visible focus indicators', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
       const deleteButton = screen.getByRole('button', { name: /delete|confirm/i });
@@ -307,25 +257,19 @@ describe('DeleteConfirm Accessibility', () => {
 
   describe('Error announcements', () => {
     it('error message has role="alert"', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} error="Deletion failed" />);
-      });
+      render(<DeleteConfirm {...defaultProps} error="Deletion failed" />);
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
     it('error message is announced immediately', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} error="Network error" />);
-      });
+      render(<DeleteConfirm {...defaultProps} error="Network error" />);
       
       const alert = screen.getByRole('alert');
       expect(alert).toHaveAttribute('aria-live', 'assertive');
     });
 
     it('error message contains the error text', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} error="Server error occurred" />);
-      });
+      render(<DeleteConfirm {...defaultProps} error="Server error occurred" />);
       
       expect(screen.getByRole('alert')).toHaveTextContent('Server error occurred');
     });
@@ -333,13 +277,9 @@ describe('DeleteConfirm Accessibility', () => {
 
   describe('Color contrast', () => {
     it('should have sufficient color contrast for buttons', async () => {
-      let container: HTMLElement;
-      await act(async () => {
-        const result = render(<DeleteConfirm {...defaultProps} />);
-        container = result.container;
-      });
+      const { container } = render(<DeleteConfirm {...defaultProps} />);
       
-      const results = await axe(container!, {
+      const results = await axe(container, {
         rules: {
           'color-contrast': { enabled: true },
         },
@@ -349,13 +289,9 @@ describe('DeleteConfirm Accessibility', () => {
     });
 
     it('should have sufficient color contrast for error message', async () => {
-      let container: HTMLElement;
-      await act(async () => {
-        const result = render(<DeleteConfirm {...defaultProps} error="Error text" />);
-        container = result.container;
-      });
+      const { container } = render(<DeleteConfirm {...defaultProps} error="Error text" />);
       
-      const results = await axe(container!, {
+      const results = await axe(container, {
         rules: {
           'color-contrast': { enabled: true },
         },
@@ -368,9 +304,7 @@ describe('DeleteConfirm Accessibility', () => {
   describe('Modal backdrop', () => {
     it('backdrop does not receive focus', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       // Wait for initial focus to be set on Cancel button
       await waitFor(() => {
@@ -388,9 +322,7 @@ describe('DeleteConfirm Accessibility', () => {
 
     it('clicking backdrop closes dialog when not loading', async () => {
       const user = userEvent.setup();
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       const backdrop = screen.getByTestId('modal-backdrop');
       await user.click(backdrop);
@@ -401,9 +333,7 @@ describe('DeleteConfirm Accessibility', () => {
 
   describe('Screen reader experience', () => {
     it('dialog title is properly associated', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       const dialog = screen.getByRole('dialog');
       const labelledById = dialog.getAttribute('aria-labelledby');
@@ -414,9 +344,7 @@ describe('DeleteConfirm Accessibility', () => {
     });
 
     it('post title is included in description for context', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       const dialog = screen.getByRole('dialog');
       const describedById = dialog.getAttribute('aria-describedby');
@@ -426,9 +354,7 @@ describe('DeleteConfirm Accessibility', () => {
     });
 
     it('loading spinner has accessible label', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} isLoading={true} />);
-      });
+      render(<DeleteConfirm {...defaultProps} isLoading={true} />);
       
       const statusElements = screen.getAllByRole('status');
       // Find the spinner (has aria-label for "Deleting post")
@@ -440,9 +366,7 @@ describe('DeleteConfirm Accessibility', () => {
 
   describe('Touch target size', () => {
     it('buttons meet minimum touch target size (44x44px)', async () => {
-      await act(async () => {
-        render(<DeleteConfirm {...defaultProps} />);
-      });
+      render(<DeleteConfirm {...defaultProps} />);
       
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
       const deleteButton = screen.getByRole('button', { name: /delete|confirm/i });

@@ -7,7 +7,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import { AuthProvider, useAuth } from '@/components/AuthProvider';
+import { AuthProvider, useAuth, getUserDisplayName } from '@/components/AuthProvider';
 import LoginForm from '@/components/LoginForm';
 import LogoutButton from '@/components/LogoutButton';
 import * as authModule from '@/lib/auth';
@@ -21,6 +21,34 @@ jest.mock('next/navigation', () => ({
     back: mockBack,
   }),
 }));
+
+// Mock Firebase module
+const mockSignInWithEmail = jest.fn();
+const mockSignOut = jest.fn();
+const mockGetIdToken = jest.fn();
+const mockIsAdmin = jest.fn();
+let authStateCallback: ((user: unknown) => void) | null = null;
+
+jest.mock('@/lib/firebase', () => ({
+  auth: null,
+  signInWithEmail: (...args: unknown[]) => mockSignInWithEmail(...args),
+  signOut: (...args: unknown[]) => mockSignOut(...args),
+  subscribeToAuthChanges: (callback: (user: unknown) => void) => {
+    authStateCallback = callback;
+    // Initially not authenticated
+    callback(null);
+    return () => { authStateCallback = null; };
+  },
+  getIdToken: (...args: unknown[]) => mockGetIdToken(...args),
+  isAdmin: (...args: unknown[]) => mockIsAdmin(...args),
+}));
+
+// Helper to simulate auth state change
+function setFirebaseUser(user: { uid: string; email: string; displayName: string } | null) {
+  if (authStateCallback) {
+    authStateCallback(user);
+  }
+};
 
 // Mock localStorage
 const mockLocalStorage: Record<string, string> = {};
@@ -67,7 +95,7 @@ function AuthStateDisplay() {
   return (
     <div>
       <div data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'not-authenticated'}</div>
-      {user && <div data-testid="username">{user.username}</div>}
+      {user && <div data-testid="username">{getUserDisplayName(user)}</div>}
     </div>
   );
 }
@@ -93,14 +121,14 @@ describe('Auth Flow Integration', () => {
   });
 
   describe('LoginForm', () => {
-    it('renders login form with username and password fields', async () => {
+    it('renders login form with email and password fields', async () => {
       render(
         <TestWrapper>
           <LoginForm />
         </TestWrapper>
       );
 
-      expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
     });
@@ -125,7 +153,7 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
-      await user.type(screen.getByLabelText(/username/i), 'alice');
+      await user.type(screen.getByLabelText(/email/i), 'alice@example.com');
       await user.type(screen.getByLabelText(/password/i), 'password123');
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
@@ -134,10 +162,12 @@ describe('Auth Flow Integration', () => {
 
     it('calls login function on form submission', async () => {
       const user = userEvent.setup();
-      mockLogin.mockResolvedValueOnce({
-        token: 'test-token',
-        user: { id: 1, username: 'alice' },
-      });
+      const mockFirebaseUser = {
+        uid: '123',
+        email: 'alice@example.com',
+        displayName: 'Alice',
+      };
+      mockSignInWithEmail.mockResolvedValueOnce(mockFirebaseUser);
       
       const onSuccess = jest.fn();
       
@@ -147,24 +177,26 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
-      await user.type(screen.getByLabelText(/username/i), 'alice');
+      await user.type(screen.getByLabelText(/email/i), 'alice@example.com');
       await user.type(screen.getByLabelText(/password/i), 'password123');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith({
-          username: 'alice',
-          password: 'password123',
-        });
+        expect(mockSignInWithEmail).toHaveBeenCalledWith(
+          'alice@example.com',
+          'password123',
+        );
       });
     });
 
     it('calls onSuccess callback after successful login', async () => {
       const user = userEvent.setup();
-      mockLogin.mockResolvedValueOnce({
-        token: 'test-token',
-        user: { id: 1, username: 'alice' },
-      });
+      const mockFirebaseUser = {
+        uid: '123',
+        email: 'alice@example.com',
+        displayName: 'Alice',
+      };
+      mockSignInWithEmail.mockResolvedValueOnce(mockFirebaseUser);
       
       const onSuccess = jest.fn();
       
@@ -174,7 +206,7 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
-      await user.type(screen.getByLabelText(/username/i), 'alice');
+      await user.type(screen.getByLabelText(/email/i), 'alice@example.com');
       await user.type(screen.getByLabelText(/password/i), 'password123');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
@@ -185,7 +217,7 @@ describe('Auth Flow Integration', () => {
 
     it('displays error message on login failure', async () => {
       const user = userEvent.setup();
-      mockLogin.mockRejectedValueOnce(new Error('Invalid username or password'));
+      mockSignInWithEmail.mockRejectedValueOnce(new Error('Invalid credentials'));
       
       render(
         <TestWrapper>
@@ -193,7 +225,7 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
-      await user.type(screen.getByLabelText(/username/i), 'alice');
+      await user.type(screen.getByLabelText(/email/i), 'alice@example.com');
       await user.type(screen.getByLabelText(/password/i), 'wrongpassword');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
@@ -205,11 +237,11 @@ describe('Auth Flow Integration', () => {
     it('shows loading state during submission', async () => {
       const user = userEvent.setup();
       // Create a promise that won't resolve immediately
-      let resolveLogin: (value: any) => void;
+      let resolveLogin: (value: unknown) => void;
       const loginPromise = new Promise(resolve => {
         resolveLogin = resolve;
       });
-      mockLogin.mockReturnValueOnce(loginPromise as any);
+      mockSignInWithEmail.mockReturnValueOnce(loginPromise as Promise<unknown>);
       
       render(
         <TestWrapper>
@@ -217,21 +249,24 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
-      await user.type(screen.getByLabelText(/username/i), 'alice');
+      await user.type(screen.getByLabelText(/email/i), 'alice@example.com');
       await user.type(screen.getByLabelText(/password/i), 'password123');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       expect(screen.getByRole('button', { name: /signing in/i })).toBeInTheDocument();
       
       // Resolve the promise
-      resolveLogin!({ token: 'test-token', user: { id: 1, username: 'alice' } });
+      resolveLogin!({ uid: '123', email: 'alice@example.com', displayName: 'Alice' });
     });
   });
 
   describe('LogoutButton', () => {
+    const mockFirebaseUser = { uid: '123', email: 'alice@example.com', displayName: 'Alice' };
+
     beforeEach(() => {
-      mockGetCurrentUser.mockReturnValue({ id: 1, username: 'alice' });
+      mockGetCurrentUser.mockReturnValue({ id: 1, email: 'alice@example.com' });
       mockIsAuthenticated.mockReturnValue(true);
+      mockIsAdmin.mockResolvedValue(false);
     });
 
     it('renders when user is authenticated', async () => {
@@ -240,6 +275,11 @@ describe('Auth Flow Integration', () => {
           <LogoutButton />
         </TestWrapper>
       );
+
+      // Simulate Firebase auth state with logged-in user
+      await act(async () => {
+        setFirebaseUser(mockFirebaseUser);
+      });
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
@@ -253,6 +293,11 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
+      // Simulate Firebase auth state with logged-in user
+      await act(async () => {
+        setFirebaseUser(mockFirebaseUser);
+      });
+
       await waitFor(() => {
         expect(screen.getByText(/alice/i)).toBeInTheDocument();
       });
@@ -260,6 +305,7 @@ describe('Auth Flow Integration', () => {
 
     it('calls logout function when clicked', async () => {
       const user = userEvent.setup();
+      mockSignOut.mockResolvedValue(undefined);
       
       render(
         <TestWrapper>
@@ -267,17 +313,25 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
+      // Simulate Firebase auth state with logged-in user
+      await act(async () => {
+        setFirebaseUser(mockFirebaseUser);
+      });
+
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /sign out/i }));
 
-      expect(mockLogout).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockSignOut).toHaveBeenCalled();
+      });
     });
 
     it('redirects to specified path after logout', async () => {
       const user = userEvent.setup();
+      mockSignOut.mockResolvedValue(undefined);
       
       render(
         <TestWrapper>
@@ -285,20 +339,28 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
+      // Simulate Firebase auth state with logged-in user
+      await act(async () => {
+        setFirebaseUser(mockFirebaseUser);
+      });
+
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /sign out/i }));
 
-      expect(mockPush).toHaveBeenCalledWith('/goodbye');
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/goodbye');
+      });
     });
   });
 
   describe('AuthProvider', () => {
     it('provides auth state to children', async () => {
-      mockGetCurrentUser.mockReturnValue({ id: 1, username: 'alice' });
+      mockGetCurrentUser.mockReturnValue({ id: 1, email: 'alice@example.com' });
       mockIsAuthenticated.mockReturnValue(true);
+      mockIsAdmin.mockResolvedValue(false);
       
       render(
         <TestWrapper>
@@ -306,12 +368,17 @@ describe('Auth Flow Integration', () => {
         </TestWrapper>
       );
 
+      // Simulate Firebase auth state with logged-in user
+      await act(async () => {
+        setFirebaseUser({ uid: '123', email: 'alice@example.com', displayName: 'Alice' });
+      });
+
       await waitFor(() => {
         expect(screen.queryByTestId('loading')).not.toBeInTheDocument();
       });
 
       expect(screen.getByTestId('auth-status')).toHaveTextContent('authenticated');
-      expect(screen.getByTestId('username')).toHaveTextContent('alice');
+      expect(screen.getByTestId('username')).toHaveTextContent('Alice');
     });
 
     it('shows not authenticated when user is logged out', async () => {
@@ -335,13 +402,10 @@ describe('Auth Flow Integration', () => {
       const user = userEvent.setup();
       mockGetCurrentUser.mockReturnValue(null);
       mockIsAuthenticated.mockReturnValue(false);
+      mockIsAdmin.mockResolvedValue(false);
       
-      mockLogin.mockImplementation(async () => {
-        // Simulate successful login updating the state
-        mockGetCurrentUser.mockReturnValue({ id: 1, username: 'alice' });
-        mockIsAuthenticated.mockReturnValue(true);
-        return { token: 'test-token', user: { id: 1, username: 'alice' } };
-      });
+      const mockFirebaseUser = { uid: '123', email: 'alice@example.com', displayName: 'Alice' };
+      mockSignInWithEmail.mockResolvedValueOnce(mockFirebaseUser);
       
       render(
         <TestWrapper>
@@ -356,9 +420,14 @@ describe('Auth Flow Integration', () => {
 
       expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
 
-      await user.type(screen.getByLabelText(/username/i), 'alice');
+      await user.type(screen.getByLabelText(/email/i), 'alice@example.com');
       await user.type(screen.getByLabelText(/password/i), 'password123');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      // Simulate Firebase auth state change after successful login
+      await act(async () => {
+        setFirebaseUser(mockFirebaseUser);
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId('auth-status')).toHaveTextContent('authenticated');
@@ -369,23 +438,17 @@ describe('Auth Flow Integration', () => {
   describe('Full Login/Logout Cycle', () => {
     it('completes full login and logout cycle', async () => {
       const user = userEvent.setup();
+      mockIsAdmin.mockResolvedValue(false);
       
       // Start logged out
       mockGetCurrentUser.mockReturnValue(null);
       mockIsAuthenticated.mockReturnValue(false);
       
-      mockLogin.mockImplementation(async () => {
-        mockGetCurrentUser.mockReturnValue({ id: 1, username: 'alice' });
-        mockIsAuthenticated.mockReturnValue(true);
-        return { token: 'test-token', user: { id: 1, username: 'alice' } };
-      });
-
-      mockLogout.mockImplementation(() => {
-        mockGetCurrentUser.mockReturnValue(null);
-        mockIsAuthenticated.mockReturnValue(false);
-      });
+      const mockFirebaseUser = { uid: '123', email: 'alice@example.com', displayName: 'Alice' };
+      mockSignInWithEmail.mockResolvedValueOnce(mockFirebaseUser);
+      mockSignOut.mockResolvedValue(undefined);
       
-      const { rerender } = render(
+      render(
         <TestWrapper>
           <AuthStateDisplay />
           <LoginForm />
@@ -401,9 +464,14 @@ describe('Auth Flow Integration', () => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
 
       // Login
-      await user.type(screen.getByLabelText(/username/i), 'alice');
+      await user.type(screen.getByLabelText(/email/i), 'alice@example.com');
       await user.type(screen.getByLabelText(/password/i), 'password123');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      // Simulate Firebase auth state change after successful login
+      await act(async () => {
+        setFirebaseUser(mockFirebaseUser);
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId('auth-status')).toHaveTextContent('authenticated');

@@ -20,7 +20,9 @@ describe('Request Tracing - Contract Tests (US8)', () => {
       skipHelmet: true,
       skipRequestContext: true,
       skipRateLimiting: true,
-      jwtSecret: 'test-secret'
+      skipCSRF: true,
+      jwtSecret: 'test-secret',
+      useJwtAuth: true
     });
     await server.ready();
 

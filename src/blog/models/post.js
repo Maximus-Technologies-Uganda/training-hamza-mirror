@@ -54,9 +54,9 @@ export const postSchema = {
       description: 'Post content (non-whitespace)'
     },
     ownerId: {
-      type: 'integer',
-      minimum: 1,
-      description: 'ID of the user who created this post'
+      type: 'string',
+      minLength: 1,
+      description: 'Firebase UID of the user who created this post'
     },
     createdAt: {
       type: 'string',

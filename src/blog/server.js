@@ -13,11 +13,17 @@ import swaggerUi from '@fastify/swagger-ui';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
+import cookie from '@fastify/cookie';
 import fastifyRequestContext from '@fastify/request-context';
 import { randomUUID, randomBytes } from 'crypto';
 import { errorHandler } from './middleware/error-handler.js';
 import { requestIdPlugin } from './middleware/request-id.js';
 import { authPlugin } from './middleware/auth.js';
+import { firebaseAuthPlugin } from './middleware/firebase-auth.js';
+import { authorizationPlugin } from './middleware/authorization.js';
+import { csrfPlugin } from './middleware/csrf.js';
+import { auditPlugin } from './middleware/audit.js';
+import { generateMutationRateLimitKey, generateGlobalRateLimitKey, createRateLimitErrorResponse } from './middleware/rate-limit.js';
 import { MemoryStorage } from './storage/memory-storage.js';
 import { UserService } from './services/user-service.js';
 import { healthRoutes } from './routes/health.js';
@@ -34,6 +40,10 @@ const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PR
 const FIRESTORE_COLLECTION = process.env.FIRESTORE_COLLECTION || 'posts';
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
 const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10); // 1 minute default
+
+// Rate limiting for mutations (per spec: 10 req/min per user)
+const MUTATION_RATE_LIMIT_MAX = parseInt(process.env.MUTATION_RATE_LIMIT_MAX || '10', 10);
+const MUTATION_RATE_LIMIT_WINDOW = parseInt(process.env.MUTATION_RATE_LIMIT_WINDOW || '60000', 10); // 1 minute
 
 // Auto-generate JWT_SECRET in development if not provided
 // In production, JWT_SECRET must be explicitly set
@@ -102,8 +112,10 @@ export async function createServer(options = {}) {
     skipCors,
     skipHelmet,
     skipRateLimiting,
+    skipCSRF,
     jwtSecret: providedJwtSecret,
     logger: providedLogger,
+    useJwtAuth,
     ...fastifyOptions
   } = options;
 
@@ -114,6 +126,9 @@ export async function createServer(options = {}) {
     // SECURITY: Disabled by default to prevent X-Forwarded-For spoofing attacks on rate limiting
     // Enable via TRUST_PROXY=true env var or automatically on Cloud Run (K_SERVICE detected)
     trustProxy: TRUST_PROXY,
+    // Pino logger configuration with audit log support
+    // Audit logs are tagged with { audit: true } for filtering
+    // Filter audit logs with: jq 'select(.audit == true)' logs.json
     logger: providedLogger ?? (NODE_ENV === 'production' ? {
       level: 'info',
       serializers: {
@@ -162,6 +177,12 @@ export async function createServer(options = {}) {
   // Register request-id middleware (adds X-Request-Id to all responses)
   fastify.register(requestIdPlugin);
 
+  // Register cookie plugin (required for CSRF middleware)
+  await fastify.register(cookie, {
+    secret: providedJwtSecret || JWT_SECRET, // Use same secret for signed cookies
+    parseOptions: {}
+  });
+
   // Register JWT plugin for authentication (fails fast if secret is missing)
   const jwtSecret = resolveJwtSecret({ jwtSecret: providedJwtSecret });
   await fastify.register(jwt, { secret: jwtSecret });
@@ -169,7 +190,24 @@ export async function createServer(options = {}) {
   // Register auth middleware (adds fastify.authenticate decorator)
   await fastify.register(authPlugin);
   
-  fastify.log.info('JWT authentication enabled');
+  // Register Firebase Auth middleware (adds verifyFirebaseToken, optionalFirebaseAuth)
+  // In test mode with useJwtAuth: true, uses Fastify JWT instead of Firebase Admin SDK
+  await fastify.register(firebaseAuthPlugin, { useJwtAuth });
+  
+  // Register authorization middleware (adds requireOwnerOrAdmin, requireAdmin)
+  await fastify.register(authorizationPlugin);
+  
+  // Register CSRF middleware (adds setCSRFToken, requireCSRF)
+  // In test mode with skipCSRF: true, CSRF validation is disabled
+  await fastify.register(csrfPlugin, { disabled: skipCSRF });
+  
+  // Register audit logging middleware (adds auditService, request.auditCreate/Update/Delete)
+  await fastify.register(auditPlugin);
+  
+  fastify.log.info('JWT and Firebase authentication enabled');
+
+  // Populate firebaseUser early so rate limit keys can use per-user identity even in onRequest
+  fastify.addHook('onRequest', fastify.optionalFirebaseAuth);
 
   // Create UserService and decorate fastify instance
   const userService = new UserService(storage);
@@ -227,9 +265,9 @@ export async function createServer(options = {}) {
             }
           }
         : true, // Allow all origins in development
-      credentials: false,
+      credentials: true, // Required for cookies (CSRF)
       methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID']
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-CSRF-Token']
     });
   }
 
@@ -243,18 +281,16 @@ export async function createServer(options = {}) {
 
   // Register rate limiting middleware (before routes) - skip in test mode if requested
   if (!skipRateLimiting) {
+    // Global rate limiting (100 req/min default)
     fastify.register(rateLimit, {
+      global: true,
       max: RATE_LIMIT_MAX,
       timeWindow: RATE_LIMIT_WINDOW,
+      // Key generator: use user ID if authenticated, otherwise IP
+      keyGenerator: generateGlobalRateLimitKey,
       errorResponseBuilder: (request) => {
-        const requestId = request.id || 'unknown';
-        return {
-          error: {
-            code: 'TOO_MANY_REQUESTS',
-            message: 'Rate limit exceeded. Please try again later.',
-            requestId
-          }
-        };
+        const retryAfter = Math.ceil(RATE_LIMIT_WINDOW / 1000);
+        return createRateLimitErrorResponse(request, retryAfter);
       },
       addHeadersOnExceeding: {
         'x-ratelimit-limit': true,
@@ -264,10 +300,34 @@ export async function createServer(options = {}) {
       addHeaders: {
         'x-ratelimit-limit': true,
         'x-ratelimit-remaining': true,
-        'x-ratelimit-reset': true
+        'x-ratelimit-reset': true,
+        'retry-after': true
       }
     });
   }
+  
+  // Decorate fastify with mutation rate limit config for use in routes
+  // Routes apply this as route-specific config for POST, PATCH, DELETE
+  fastify.decorate('mutationRateLimitConfig', {
+    max: MUTATION_RATE_LIMIT_MAX,
+    timeWindow: MUTATION_RATE_LIMIT_WINDOW,
+    keyGenerator: generateMutationRateLimitKey,
+    errorResponseBuilder: (request) => {
+      const retryAfter = Math.ceil(MUTATION_RATE_LIMIT_WINDOW / 1000);
+      return createRateLimitErrorResponse(request, retryAfter);
+    },
+    addHeadersOnExceeding: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true
+    },
+    addHeaders: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true,
+      'retry-after': true
+    }
+  });
 
   // Register error handler
   fastify.setErrorHandler(errorHandler);

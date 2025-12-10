@@ -17,6 +17,7 @@ describe('PostCard', () => {
     body: 'This is the full body content of the test post. It contains multiple sentences to test excerpt extraction.',
     createdAt: '2025-11-27T10:00:00Z',
     updatedAt: '2025-11-27T10:00:00Z',
+    ownerId: 1,
   };
 
   it('renders post title', () => {

@@ -1,0 +1,124 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SSR Posts Page matches SSR snapshot 1`] = `
+<div>
+  <section
+    aria-label="Blog posts"
+  >
+    <div
+      aria-atomic="true"
+      aria-live="polite"
+      class="sr-only"
+      role="status"
+    >
+      2
+       
+      posts
+       available
+    </div>
+    <ul
+      class="space-y-6 list-none p-0"
+      role="list"
+    >
+      <li>
+        <article
+          class="card hover:shadow-lg transition-shadow"
+        >
+          <a
+            aria-label="Read full post: First SSR Post"
+            class="block no-underline"
+            href="/posts/1"
+          >
+            <h2
+              class="text-xl font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors"
+            >
+              First SSR Post
+            </h2>
+          </a>
+          <div
+            class="flex items-center gap-2 text-sm text-gray-500 mb-3"
+          >
+            <time
+              aria-label="Published on December 1, 2025"
+              datetime="2025-12-01T10:00:00.000Z"
+            >
+              December 1, 2025
+            </time>
+            <span
+              aria-hidden="true"
+            >
+              •
+            </span>
+            <span
+              aria-label="Post slug: first-ssr-post"
+              class="text-gray-400 font-mono text-xs"
+            >
+              first-ssr-post
+            </span>
+          </div>
+          <p
+            class="text-gray-700 mb-4 line-clamp-3"
+          >
+            This post should appear in server HTML
+          </p>
+          <a
+            class="text-blue-600 hover:text-blue-800 font-medium text-sm"
+            href="/posts/1"
+          >
+            Read more →
+          </a>
+        </article>
+      </li>
+      <li>
+        <article
+          class="card hover:shadow-lg transition-shadow"
+        >
+          <a
+            aria-label="Read full post: Second SSR Post"
+            class="block no-underline"
+            href="/posts/2"
+          >
+            <h2
+              class="text-xl font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors"
+            >
+              Second SSR Post
+            </h2>
+          </a>
+          <div
+            class="flex items-center gap-2 text-sm text-gray-500 mb-3"
+          >
+            <time
+              aria-label="Published on December 2, 2025"
+              datetime="2025-12-02T10:00:00.000Z"
+            >
+              December 2, 2025
+            </time>
+            <span
+              aria-hidden="true"
+            >
+              •
+            </span>
+            <span
+              aria-label="Post slug: second-ssr-post"
+              class="text-gray-400 font-mono text-xs"
+            >
+              second-ssr-post
+            </span>
+          </div>
+          <p
+            class="text-gray-700 mb-4 line-clamp-3"
+          >
+            Another server-rendered post
+          </p>
+          <a
+            class="text-blue-600 hover:text-blue-800 font-medium text-sm"
+            href="/posts/2"
+          >
+            Read more →
+          </a>
+        </article>
+      </li>
+    </ul>
+  </section>
+</div>
+`;

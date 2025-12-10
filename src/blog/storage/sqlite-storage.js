@@ -57,14 +57,16 @@ export class SQLiteStorage {
     ).get();
 
     if (postsTableExists) {
-      // Check if ownerId column exists
+      // Check if ownerId column exists and its type
       const columns = this.db.prepare("PRAGMA table_info(posts)").all();
-      const hasOwnerId = columns.some(col => col.name === 'ownerId');
+      const ownerIdColumn = columns.find(col => col.name === 'ownerId');
 
-      if (!hasOwnerId) {
+      if (!ownerIdColumn) {
         // Migration: add ownerId column to existing posts table
-        // We need to handle existing posts that have no owner
         this.migrateAddOwnerId();
+      } else if (ownerIdColumn.type === 'INTEGER') {
+        // Migration: convert INTEGER ownerId to TEXT (Firebase UID)
+        this.migrateOwnerIdToString();
       }
     } else {
       // Create posts table with full schema (new database)
@@ -74,7 +76,7 @@ export class SQLiteStorage {
           title TEXT NOT NULL CHECK(length(trim(title)) > 0 AND length(title) <= 200),
           slug TEXT NOT NULL UNIQUE CHECK(slug NOT LIKE '%[-][-]%'),
           body TEXT NOT NULL CHECK(length(trim(body)) > 0 AND length(body) <= 50000),
-          ownerId INTEGER NOT NULL REFERENCES users(id),
+          ownerId TEXT NOT NULL,
           createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
           updatedAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
         );
@@ -88,27 +90,76 @@ export class SQLiteStorage {
 
   /**
    * Migrate existing posts table to add ownerId column
-   * Assigns legacy posts to ownerId = 0 (system/unowned) so any authenticated user can edit/delete them
+   * Assigns legacy posts to ownerId = 'system' (unowned)
    */
   migrateAddOwnerId() {
     // Check if there are any existing posts that need an owner
     const postCount = this.db.prepare('SELECT COUNT(*) as count FROM posts').get().count;
 
-    // Add ownerId column with a default value for existing rows
-    // SQLite doesn't support adding NOT NULL columns without defaults, so we add nullable first
-    this.db.exec(`ALTER TABLE posts ADD COLUMN ownerId INTEGER REFERENCES users(id)`);
+    // Add ownerId column as TEXT for Firebase UID
+    this.db.exec(`ALTER TABLE posts ADD COLUMN ownerId TEXT`);
     
     if (postCount > 0) {
-      // Backfill existing posts with ownerId = 0 (legacy/system posts)
-      // Posts with ownerId = 0 can be edited/deleted by any authenticated user
-      this.db.prepare('UPDATE posts SET ownerId = 0 WHERE ownerId IS NULL').run();
-      console.log(`[MIGRATION] Assigned ${postCount} legacy posts to ownerId = 0 (editable by any authenticated user)`);
+      // Backfill existing posts with ownerId = 'system' (legacy posts)
+      this.db.prepare("UPDATE posts SET ownerId = 'system' WHERE ownerId IS NULL").run();
+      console.log(`[MIGRATION] Assigned ${postCount} legacy posts to ownerId = 'system'`);
     }
 
     // Create the owner index
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts(ownerId)`);
     
     console.log('[MIGRATION] Successfully added ownerId column to posts table');
+  }
+
+  /**
+   * Migrate ownerId from INTEGER to TEXT (Firebase UID migration)
+   * Converts existing integer owner IDs to string format
+   */
+  migrateOwnerIdToString() {
+    console.log('[MIGRATION] Converting ownerId from INTEGER to TEXT for Firebase UID support');
+    
+    // SQLite doesn't support ALTER COLUMN, so we need to recreate the table
+    this.db.exec(`
+      -- Create new posts table with TEXT ownerId
+      CREATE TABLE posts_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL CHECK(length(trim(title)) > 0 AND length(title) <= 200),
+        slug TEXT NOT NULL UNIQUE CHECK(slug NOT LIKE '%[-][-]%'),
+        body TEXT NOT NULL CHECK(length(trim(body)) > 0 AND length(body) <= 50000),
+        ownerId TEXT NOT NULL,
+        createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updatedAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+
+      -- Copy data, converting ownerId to string, use 'system' for 0 (legacy posts)
+      INSERT INTO posts_new (id, title, slug, body, ownerId, createdAt, updatedAt)
+      SELECT 
+        id, 
+        title, 
+        slug, 
+        body, 
+        CASE 
+          WHEN ownerId = 0 THEN 'system'
+          ELSE CAST(ownerId AS TEXT)
+        END as ownerId,
+        createdAt, 
+        updatedAt
+      FROM posts;
+
+      -- Drop old table
+      DROP TABLE posts;
+
+      -- Rename new table
+      ALTER TABLE posts_new RENAME TO posts;
+
+      -- Recreate indexes
+      CREATE INDEX idx_posts_created ON posts(createdAt DESC);
+      CREATE UNIQUE INDEX idx_posts_slug ON posts(slug);
+      CREATE INDEX idx_posts_owner ON posts(ownerId);
+    `);
+
+    const postCount = this.db.prepare('SELECT COUNT(*) as count FROM posts').get().count;
+    console.log(`[MIGRATION] Successfully migrated ${postCount} posts to use TEXT ownerId`);
   }
 
   // ==================== User Methods ====================
