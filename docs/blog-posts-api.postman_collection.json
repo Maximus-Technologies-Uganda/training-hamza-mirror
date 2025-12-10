@@ -175,7 +175,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"statusCode\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"body must have required property 'title'\"\n}"
+              "body": "{\n  \"error\": {\n    \"statusCode\": 400,\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"title: is required\",\n    \"requestId\": \"example-request-id\"\n  }\n}"
             }
           ]
         },
@@ -309,7 +309,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"statusCode\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Post with id 999 not found\"\n}"
+              "body": "{\n  \"error\": {\n    \"statusCode\": 404,\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"Post with ID 999 not found\",\n    \"requestId\": \"example-request-id\"\n  }\n}"
             }
           ]
         },
@@ -413,12 +413,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"statusCode\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Post with id 999 not found\"\n}"
+              "body": "{\n  \"error\": {\n    \"statusCode\": 404,\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"Post with ID 999 not found\",\n    \"requestId\": \"example-request-id\"\n  }\n}"
             }
           ]
         },
         {
-          "name": "Delete Post",
+          "name": "Update Post",
           "event": [
             {
               "listen": "test",
@@ -484,7 +484,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"statusCode\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Post with id 999 not found\"\n}"
+              "body": "{\n  \"error\": {\n    \"statusCode\": 404,\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"Post with ID 999 not found\",\n    \"requestId\": \"example-request-id\"\n  }\n}"
             }
           ]
         }
@@ -504,12 +504,13 @@
                   "    pm.response.to.have.status(400);",
                   "});",
                   "",
-                  "pm.test('Response contains error details', () => {",
-                  "    const response = pm.response.json();",
-                  "    pm.expect(response).to.have.property('statusCode', 400);",
-                  "    pm.expect(response).to.have.property('error');",
-                  "    pm.expect(response).to.have.property('message');",
-                  "});"
+                "pm.test('Response contains error details', () => {",
+                "    const response = pm.response.json();",
+                "    pm.expect(response).to.have.property('error');",
+                "    pm.expect(response.error).to.have.property('statusCode', 400);",
+                "    pm.expect(response.error).to.have.property('code');",
+                "    pm.expect(response.error).to.have.property('message');",
+                "}); "
                 ],
                 "type": "text/javascript"
               }
@@ -547,12 +548,13 @@
                   "    pm.response.to.have.status(400);",
                   "});",
                   "",
-                  "pm.test('Response contains error details', () => {",
-                  "    const response = pm.response.json();",
-                  "    pm.expect(response).to.have.property('statusCode', 400);",
-                  "    pm.expect(response).to.have.property('error');",
-                  "    pm.expect(response).to.have.property('message');",
-                  "});"
+                "pm.test('Response contains error details', () => {",
+                "    const response = pm.response.json();",
+                "    pm.expect(response).to.have.property('error');",
+                "    pm.expect(response.error).to.have.property('statusCode', 400);",
+                "    pm.expect(response.error).to.have.property('code');",
+                "    pm.expect(response.error).to.have.property('message');",
+                "});"
                 ],
                 "type": "text/javascript"
               }
@@ -592,9 +594,10 @@
                   "",
                   "pm.test('Response contains error details', () => {",
                   "    const response = pm.response.json();",
-                  "    pm.expect(response).to.have.property('statusCode', 400);",
                   "    pm.expect(response).to.have.property('error');",
-                  "    pm.expect(response).to.have.property('message');",
+                  "    pm.expect(response.error).to.have.property('statusCode', 400);",
+                  "    pm.expect(response.error).to.have.property('code');",
+                  "    pm.expect(response.error).to.have.property('message');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -626,9 +629,10 @@
                   "",
                   "pm.test('Response contains error details', () => {",
                   "    const response = pm.response.json();",
-                  "    pm.expect(response).to.have.property('statusCode', 400);",
                   "    pm.expect(response).to.have.property('error');",
-                  "    pm.expect(response).to.have.property('message');",
+                  "    pm.expect(response.error).to.have.property('statusCode', 400);",
+                  "    pm.expect(response.error).to.have.property('code');",
+                  "    pm.expect(response.error).to.have.property('message');",
                   "});"
                 ],
                 "type": "text/javascript"
