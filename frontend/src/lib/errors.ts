@@ -374,17 +374,30 @@ export function isApiError(error: unknown): error is ApiError {
  * @returns Array of validation error messages
  */
 export function getValidationErrors(error: ApiError): string[] {
-  if (!error.details || error.code !== ErrorCode.VALIDATION_ERROR) {
+  // Check if this is a validation error
+  if (error.code !== ErrorCode.VALIDATION_ERROR) {
     return [];
   }
   
   const errors: string[] = [];
   
-  for (const [field, messages] of Object.entries(error.details)) {
-    if (Array.isArray(messages)) {
-      errors.push(...messages.map(msg => `${field}: ${msg}`));
-    } else if (typeof messages === 'string') {
-      errors.push(`${field}: ${messages}`);
+  // Handle ApiError class format (validation array of { field, message })
+  const apiError = error as unknown as { validation?: Array<{ field: string; message: string }> };
+  if (Array.isArray(apiError.validation) && apiError.validation.length > 0) {
+    for (const v of apiError.validation) {
+      errors.push(`${v.field}: ${v.message}`);
+    }
+    return errors;
+  }
+  
+  // Handle legacy format (details object with field -> messages)
+  if (error.details) {
+    for (const [field, messages] of Object.entries(error.details)) {
+      if (Array.isArray(messages)) {
+        errors.push(...messages.map(msg => `${field}: ${msg}`));
+      } else if (typeof messages === 'string') {
+        errors.push(`${field}: ${messages}`);
+      }
     }
   }
   

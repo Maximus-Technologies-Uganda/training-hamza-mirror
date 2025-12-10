@@ -45,6 +45,14 @@ export class ApiError extends Error {
   }
 
   /**
+   * Get the error code (alias for 'error' property)
+   * This allows error.code to work for code that expects a 'code' property
+   */
+  get code(): string {
+    return this.error;
+  }
+
+  /**
    * Create ApiError from API response body
    * Handles both legacy flat format and new nested format:
    * - New: { error: { code, message, validation, requestId } }
