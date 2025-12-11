@@ -65,7 +65,9 @@ jobs:
           CI: true
       
       - name: Build application
-        run: npm run build
+        run: |
+          npm run build
+          npm run export
         env:
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3000' }}
       
@@ -73,8 +75,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          # Upload the actual Next.js build output (.next) so dependent jobs can download it
-          path: frontend/.next
+          # Upload static export for GitHub Pages
+          path: frontend/out
           retention-days: 1
       
       - name: Upload coverage report
@@ -107,7 +109,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: ./.next
+          path: ./out
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -115,7 +117,7 @@ jobs:
       - name: Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./.next
+          path: ./out
       
       - name: Deploy to GitHub Pages
         id: deployment
@@ -149,15 +151,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: frontend/.next
+          path: frontend/out
       
       - name: Check bundle size
         run: |
           echo "📊 Bundle Size Analysis"
           echo "========================"
           
-          # Calculate total size of JS and CSS files from the built static assets
-          TOTAL_SIZE=$(find .next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -cb {} + | tail -1 | cut -f1)
+          # Calculate total size of JS and CSS files from the exported static assets
+          TOTAL_SIZE=$(find out/_next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -cb {} + | tail -1 | cut -f1)
           TOTAL_KB=$((TOTAL_SIZE / 1024))
           
           echo "Total JS/CSS size: ${TOTAL_KB}KB"
@@ -173,7 +175,7 @@ jobs:
           # List largest files
           echo ""
           echo "Largest files:"
-          find .next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -h {} + | sort -rh | head -10
+          find out/_next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -h {} + | sort -rh | head -10
       
       - name: Report test coverage summary
         run: |

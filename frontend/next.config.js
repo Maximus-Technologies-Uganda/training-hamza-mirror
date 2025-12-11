@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone output for Docker/Cloud Run deployment
-  output: 'standalone',
+  // Static export for GitHub Pages
+  output: 'export',
   
   images: {
     // Allow images from API domain
