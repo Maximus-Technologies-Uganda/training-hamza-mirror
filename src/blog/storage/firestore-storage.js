@@ -14,9 +14,9 @@ import { generateSlug } from '../services/slug-generator.js';
 /**
  * Sentinel value for legacy posts that predate the ownership feature.
  * These posts cannot be modified by regular users until they are migrated.
- * Using -1 distinguishes legacy posts from invalid data (0) and valid users (>0).
+ * Using 'system' matches the SQLite storage adapter's legacy owner convention.
  */
-export const LEGACY_OWNER_ID = -1;
+export const LEGACY_OWNER_ID = 'system';
 
 // Firestore REST endpoints
 const METADATA_TOKEN_URL = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token';
@@ -157,7 +157,7 @@ export class FirestoreStorage extends StorageAdapter {
         title: { stringValue: post.title },
         slug: { stringValue: post.slug },
         body: { stringValue: post.body },
-        ownerId: { integerValue: String(post.ownerId) },
+        ownerId: { stringValue: String(post.ownerId) },
         createdAt: { stringValue: post.createdAt },
         updatedAt: { stringValue: post.updatedAt }
       }
@@ -166,11 +166,12 @@ export class FirestoreStorage extends StorageAdapter {
 
   fromFirestoreDocument(doc) {
     const fields = doc?.fields || {};
-    // For legacy posts without ownerId, use LEGACY_OWNER_ID (-1) sentinel value.
+    // For legacy posts without ownerId, use LEGACY_OWNER_ID ('system') sentinel value.
     // This distinguishes legacy posts from invalid data and marks them as protected.
-    const rawOwnerId = fields.ownerId?.integerValue;
+    // Support both stringValue (new format) and integerValue (legacy format) for backwards compatibility.
+    const rawOwnerId = fields.ownerId?.stringValue ?? fields.ownerId?.integerValue;
     const ownerId = rawOwnerId !== undefined && rawOwnerId !== null
-      ? parseInt(rawOwnerId, 10)
+      ? String(rawOwnerId)
       : LEGACY_OWNER_ID;
     return {
       id: parseInt(fields.id?.integerValue ?? '0', 10),
