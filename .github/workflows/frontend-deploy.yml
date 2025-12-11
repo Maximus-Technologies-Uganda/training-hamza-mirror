@@ -73,7 +73,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: frontend/out
+          # Upload the actual Next.js build output (.next) so dependent jobs can download it
+          path: frontend/.next
           retention-days: 1
       
       - name: Upload coverage report
@@ -106,7 +107,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: ./out
+          path: ./.next
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -114,7 +115,7 @@ jobs:
       - name: Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: ./.next
       
       - name: Deploy to GitHub Pages
         id: deployment
@@ -148,15 +149,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: frontend/out
+          path: frontend/.next
       
       - name: Check bundle size
         run: |
           echo "📊 Bundle Size Analysis"
           echo "========================"
           
-          # Calculate total size of JS and CSS files
-          TOTAL_SIZE=$(find out -type f \( -name "*.js" -o -name "*.css" \) -exec du -cb {} + | tail -1 | cut -f1)
+          # Calculate total size of JS and CSS files from the built static assets
+          TOTAL_SIZE=$(find .next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -cb {} + | tail -1 | cut -f1)
           TOTAL_KB=$((TOTAL_SIZE / 1024))
           
           echo "Total JS/CSS size: ${TOTAL_KB}KB"
@@ -172,7 +173,7 @@ jobs:
           # List largest files
           echo ""
           echo "Largest files:"
-          find out -type f \( -name "*.js" -o -name "*.css" \) -exec du -h {} + | sort -rh | head -10
+          find .next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -h {} + | sort -rh | head -10
       
       - name: Report test coverage summary
         run: |
