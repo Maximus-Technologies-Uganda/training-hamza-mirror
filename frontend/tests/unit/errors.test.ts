@@ -10,6 +10,8 @@ import {
   isClientError,
   isServerError,
   getErrorAction,
+  getValidationErrors,
+  formatError,
 } from '@/lib/errors';
 
 describe('Error Mapping Utilities', () => {
@@ -213,6 +215,94 @@ describe('Error Mapping Utilities', () => {
       expect(getErrorAction(400)).toBe('Try again');
       expect(getErrorAction(404)).toBe('Try again');
       expect(getErrorAction(418)).toBe('Try again');
+    });
+  });
+
+  describe('getValidationErrors', () => {
+    it('extracts validation errors from ApiError with validation array', () => {
+      // Simulate ApiError class structure with error property (not code)
+      const error = {
+        statusCode: 400,
+        error: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        validation: [
+          { field: 'title', message: 'Title is required' },
+          { field: 'content', message: 'Content must be at least 10 characters' },
+        ],
+      };
+
+      const errors = getValidationErrors(error);
+
+      expect(errors).toHaveLength(2);
+      expect(errors[0]).toBe('title: Title is required');
+      expect(errors[1]).toBe('content: Content must be at least 10 characters');
+    });
+
+    it('extracts validation errors when code getter is available', () => {
+      // Simulate ApiError class with code getter
+      const error = {
+        statusCode: 400,
+        error: 'VALIDATION_ERROR',
+        get code() { return this.error as 'VALIDATION_ERROR'; },
+        message: 'Validation failed',
+        validation: [
+          { field: 'email', message: 'Invalid email format' },
+        ],
+      };
+
+      const errors = getValidationErrors(error);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBe('email: Invalid email format');
+    });
+
+    it('returns empty array for non-validation errors', () => {
+      const error = {
+        statusCode: 404,
+        error: 'NOT_FOUND',
+        message: 'Not found',
+      };
+
+      const errors = getValidationErrors(error);
+
+      expect(errors).toHaveLength(0);
+    });
+
+    it('handles legacy details format', () => {
+      const error = {
+        statusCode: 400,
+        error: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        details: {
+          title: ['Title is required', 'Title must be unique'],
+          content: 'Content is too short',
+        },
+      };
+
+      const errors = getValidationErrors(error);
+
+      expect(errors).toContain('title: Title is required');
+      expect(errors).toContain('title: Title must be unique');
+      expect(errors).toContain('content: Content is too short');
+    });
+  });
+
+  describe('formatError', () => {
+    it('includes validation errors in formatted output', () => {
+      const error = {
+        statusCode: 400,
+        error: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        validation: [
+          { field: 'title', message: 'Title is required' },
+        ],
+      };
+
+      const formatted = formatError(error);
+
+      expect(formatted.validationErrors).toBeDefined();
+      expect(formatted.validationErrors).toHaveLength(1);
+      expect(formatted.validationErrors![0]).toBe('title: Title is required');
     });
   });
 });

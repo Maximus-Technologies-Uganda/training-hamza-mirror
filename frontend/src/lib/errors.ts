@@ -36,15 +36,25 @@ export const ErrorCode = {
 export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode];
 
 /**
+ * Field validation error structure
+ */
+export interface FieldValidationError {
+  field: string;
+  message: string;
+}
+
+/**
  * API error response structure
+ * Compatible with both the ApiError class and plain error objects
  */
 export interface ApiError {
   statusCode: number;
-  error: string;
+  error: string;  // The error code (e.g., 'VALIDATION_ERROR')
   message: string;
-  code?: ErrorCodeType;
+  code?: ErrorCodeType;  // Getter alias for 'error' in ApiError class
   retryAfter?: number; // For rate limiting
-  details?: Record<string, unknown>; // For validation errors
+  details?: Record<string, unknown>; // Legacy format: field -> messages
+  validation?: FieldValidationError[]; // New format: array of { field, message }
 }
 
 /**
@@ -375,16 +385,17 @@ export function isApiError(error: unknown): error is ApiError {
  */
 export function getValidationErrors(error: ApiError): string[] {
   // Check if this is a validation error
-  if (error.code !== ErrorCode.VALIDATION_ERROR) {
+  // Support both error.code (getter in class) and error.error (direct property)
+  const errorCode = error.code || error.error;
+  if (errorCode !== ErrorCode.VALIDATION_ERROR) {
     return [];
   }
   
   const errors: string[] = [];
   
   // Handle ApiError class format (validation array of { field, message })
-  const apiError = error as unknown as { validation?: Array<{ field: string; message: string }> };
-  if (Array.isArray(apiError.validation) && apiError.validation.length > 0) {
-    for (const v of apiError.validation) {
+  if (Array.isArray(error.validation) && error.validation.length > 0) {
+    for (const v of error.validation) {
       errors.push(`${v.field}: ${v.message}`);
     }
     return errors;
@@ -464,9 +475,13 @@ export function formatError(error: ApiError | Error | unknown): FormattedError {
   }
   
   // Get validation errors if present
+  // Support both error.code (getter in class) and error.error (direct property)
   let validationErrors: string[] | undefined;
-  if (isApiError(error) && error.code === ErrorCode.VALIDATION_ERROR) {
-    validationErrors = getValidationErrors(error);
+  if (isApiError(error)) {
+    const errorCode = error.code || error.error;
+    if (errorCode === ErrorCode.VALIDATION_ERROR) {
+      validationErrors = getValidationErrors(error);
+    }
   }
   
   return {
