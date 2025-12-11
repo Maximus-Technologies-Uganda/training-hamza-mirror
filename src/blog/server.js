@@ -46,8 +46,12 @@ const MUTATION_RATE_LIMIT_MAX = parseInt(process.env.MUTATION_RATE_LIMIT_MAX || 
 const MUTATION_RATE_LIMIT_WINDOW = parseInt(process.env.MUTATION_RATE_LIMIT_WINDOW || '60000', 10); // 1 minute
 
 // Use JWT Auth instead of Firebase Auth (for local testing with newman/postman)
-// Default to JWT in non-production unless explicitly disabled
-const USE_JWT_AUTH = process.env.USE_JWT_AUTH !== 'false';
+// SECURITY: In production, default to Firebase Auth (USE_JWT_AUTH=false) to enforce proper auth
+// In development/test, default to JWT Auth for easier local testing with newman/postman
+// Can be explicitly overridden via USE_JWT_AUTH env var ('true' or 'false')
+const USE_JWT_AUTH = process.env.USE_JWT_AUTH !== undefined
+  ? process.env.USE_JWT_AUTH === 'true'
+  : NODE_ENV !== 'production';
 
 // Auto-generate JWT_SECRET in development if not provided
 // In production, JWT_SECRET must be explicitly set
