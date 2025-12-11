@@ -6,14 +6,14 @@
  */
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { 
-  getAuth, 
-  Auth, 
+import {
+  getAuth,
+  Auth,
   connectAuthEmulator,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  User
+  User,
 } from 'firebase/auth';
 
 // Firebase configuration from environment variables
@@ -23,40 +23,64 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
 };
 
-// Initialize Firebase app (singleton pattern to avoid duplicate initialization)
-let app: FirebaseApp;
-let auth: Auth;
+type FirebaseContext = {
+  app: FirebaseApp | null;
+  auth: Auth | null;
+  initialized: boolean;
+};
 
-function initializeFirebase(): { app: FirebaseApp; auth: Auth } {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    
-    // Connect to auth emulator in development
-    if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST && typeof window !== 'undefined') {
-      const emulatorHost = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST;
-      // Check if already connected to avoid error
-      if ((auth as unknown as { _canInitEmulator?: boolean })._canInitEmulator !== false) {
-        connectAuthEmulator(auth, `http://${emulatorHost}`, { disableWarnings: true });
-      }
-    }
-  } else {
-    const existingApp = getApps()[0];
-    if (existingApp) {
-      app = existingApp;
-      auth = getAuth(app);
-    } else {
-      // Fallback: initialize new app if none exists
-      app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
-    }
-  }
-  
-  return { app, auth };
+let firebaseContext: FirebaseContext | null = null;
+let warnedMissingConfig = false;
+
+function hasClientFirebaseConfig(): boolean {
+  return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId);
 }
 
-// Initialize on module load
-const { app: firebaseApp, auth: firebaseAuth } = initializeFirebase();
+function initFirebaseClient(): FirebaseContext {
+  if (firebaseContext) {
+    return firebaseContext;
+  }
+
+  // Avoid initializing Firebase during SSR/SSG when env vars may be absent
+  if (typeof window === 'undefined') {
+    firebaseContext = { app: null, auth: null, initialized: false };
+    return firebaseContext;
+  }
+
+  if (!hasClientFirebaseConfig()) {
+    if (!warnedMissingConfig) {
+      console.warn('[firebase] Missing NEXT_PUBLIC_FIREBASE_* env vars. Firebase auth disabled.');
+      warnedMissingConfig = true;
+    }
+    firebaseContext = { app: null, auth: null, initialized: false };
+    return firebaseContext;
+  }
+
+  const appInstance = getApps()[0] ?? initializeApp(firebaseConfig);
+  const authInstance = getAuth(appInstance);
+
+  // Connect to auth emulator in development
+  if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST) {
+    const emulatorHost = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST;
+    if ((authInstance as unknown as { _canInitEmulator?: boolean })._canInitEmulator !== false) {
+      connectAuthEmulator(authInstance, `http://${emulatorHost}`, { disableWarnings: true });
+    }
+  }
+
+  firebaseContext = { app: appInstance, auth: authInstance, initialized: true };
+  return firebaseContext;
+}
+
+function requireAuthInstance(): Auth {
+  const context = initFirebaseClient();
+  if (!context.auth) {
+    throw new Error('Firebase Auth is not initialized. Ensure NEXT_PUBLIC_FIREBASE_* env vars are set in the client runtime.');
+  }
+  return context.auth;
+}
+
+// Exported for compatibility; may be null during SSR/SSG when Firebase is disabled
+const { app: firebaseApp, auth: firebaseAuth } = initFirebaseClient();
 
 export { firebaseApp as app, firebaseAuth as auth };
 
@@ -67,7 +91,8 @@ export { firebaseApp as app, firebaseAuth as auth };
  * @returns Promise resolving to the authenticated user
  */
 export async function signInWithEmail(email: string, password: string): Promise<User> {
-  const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+  const authInstance = requireAuthInstance();
+  const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
   return userCredential.user;
 }
 
@@ -75,7 +100,11 @@ export async function signInWithEmail(email: string, password: string): Promise<
  * Sign out the current user
  */
 export async function signOut(): Promise<void> {
-  await firebaseSignOut(firebaseAuth);
+  const authInstance = initFirebaseClient().auth;
+  if (!authInstance) {
+    return;
+  }
+  await firebaseSignOut(authInstance);
 }
 
 /**
@@ -84,7 +113,8 @@ export async function signOut(): Promise<void> {
  * @returns Promise resolving to the ID token or null if not authenticated
  */
 export async function getIdToken(forceRefresh = false): Promise<string | null> {
-  const user = firebaseAuth.currentUser;
+  const authInstance = initFirebaseClient().auth;
+  const user = authInstance?.currentUser;
   if (!user) {
     return null;
   }
@@ -96,7 +126,7 @@ export async function getIdToken(forceRefresh = false): Promise<string | null> {
  * @returns The current user or null if not authenticated
  */
 export function getCurrentUser(): User | null {
-  return firebaseAuth.currentUser;
+  return initFirebaseClient().auth?.currentUser ?? null;
 }
 
 /**
@@ -105,7 +135,11 @@ export function getCurrentUser(): User | null {
  * @returns Unsubscribe function
  */
 export function subscribeToAuthChanges(callback: (user: User | null) => void): () => void {
-  return onAuthStateChanged(firebaseAuth, callback);
+  const authInstance = initFirebaseClient().auth;
+  if (!authInstance) {
+    return () => undefined;
+  }
+  return onAuthStateChanged(authInstance, callback);
 }
 
 /**
