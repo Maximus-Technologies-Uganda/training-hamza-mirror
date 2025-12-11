@@ -65,9 +65,7 @@ jobs:
           CI: true
       
       - name: Build application
-        run: |
-          npm run build
-          npm run export
+        run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3000' }}
       
@@ -75,8 +73,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          # Upload static export for GitHub Pages
-          path: frontend/out
+          # Upload Next.js build output (requires Node.js server for deployment)
+          path: frontend/.next
           retention-days: 1
       
       - name: Upload coverage report
@@ -87,41 +85,38 @@ jobs:
           path: frontend/coverage
           retention-days: 7
 
-  # CD Job: Deploy to GitHub Pages (main branch only)
+  # CD Job: Deploy (main branch only)
+  # Note: This app uses API routes (BFF pattern) which require a Node.js server.
+  # GitHub Pages only supports static sites, so deployment needs a server platform
+  # like Vercel, Railway, Render, or a container-based deployment.
   deploy:
-    name: Deploy to GitHub Pages
+    name: Deploy (Server Required)
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    
-    # Grant GITHUB_TOKEN permissions for deployment
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: ./out
+          path: ./.next
       
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      
-      - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./out
-      
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deployment Notice
+        run: |
+          echo "📦 Build artifacts ready for deployment"
+          echo "========================================"
+          echo ""
+          echo "This Next.js app uses API routes (BFF pattern) and requires"
+          echo "a Node.js server runtime. It cannot be deployed to GitHub Pages."
+          echo ""
+          echo "Recommended deployment options:"
+          echo "  - Vercel (recommended for Next.js)"
+          echo "  - Railway"
+          echo "  - Render"
+          echo "  - Docker container deployment"
+          echo ""
+          echo "Build artifacts are available in the 'frontend-build' artifact."
 
   # Quality Gates (optional metrics reporting)
   quality-check:
@@ -151,15 +146,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: frontend/out
+          path: frontend/.next
       
       - name: Check bundle size
         run: |
           echo "📊 Bundle Size Analysis"
           echo "========================"
           
-          # Calculate total size of JS and CSS files from the exported static assets
-          TOTAL_SIZE=$(find out/_next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -cb {} + | tail -1 | cut -f1)
+          # Calculate total size of JS and CSS files from the Next.js build output
+          TOTAL_SIZE=$(find .next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -cb {} + | tail -1 | cut -f1)
           TOTAL_KB=$((TOTAL_SIZE / 1024))
           
           echo "Total JS/CSS size: ${TOTAL_KB}KB"
@@ -175,7 +170,7 @@ jobs:
           # List largest files
           echo ""
           echo "Largest files:"
-          find out/_next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -h {} + | sort -rh | head -10
+          find .next/static -type f \( -name "*.js" -o -name "*.css" \) -exec du -h {} + | sort -rh | head -10
       
       - name: Report test coverage summary
         run: |
