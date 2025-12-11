@@ -35,7 +35,7 @@ const mockPosts: Post[] = [
     body: 'This is the first test post content.',
     createdAt: '2025-11-27T10:00:00Z',
     updatedAt: '2025-11-27T10:00:00Z',
-    ownerId: 1,
+    ownerId: 'user-1',
   },
   {
     id: 2,
@@ -44,7 +44,7 @@ const mockPosts: Post[] = [
     body: 'This is the second test post content.',
     createdAt: '2025-11-26T10:00:00Z',
     updatedAt: '2025-11-26T10:00:00Z',
-    ownerId: 1,
+    ownerId: 'user-1',
   },
 ];
 

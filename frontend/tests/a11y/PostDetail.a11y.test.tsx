@@ -17,7 +17,7 @@ describe('PostDetail Accessibility', () => {
     body: 'This is the full content of the post. It contains detailed information about the topic.\n\nSecond paragraph with more content.',
     createdAt: '2025-11-27T10:00:00Z',
     updatedAt: '2025-11-28T15:30:00Z',
-    ownerId: 1,
+    ownerId: 'user-1',
   };
 
   afterEach(() => {

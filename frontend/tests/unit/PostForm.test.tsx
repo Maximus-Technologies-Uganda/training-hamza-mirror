@@ -204,7 +204,7 @@ describe('PostForm', () => {
         body: 'Post content here',
         createdAt: '2025-11-27T10:00:00Z',
         updatedAt: '2025-11-27T10:00:00Z',
-        ownerId: 1,
+        ownerId: 'user-1',
       };
       mockCreatePost.mockResolvedValue(mockPost);
 
@@ -259,7 +259,7 @@ describe('PostForm', () => {
           body: 'Test content',
           createdAt: '2025-11-27T10:00:00Z',
           updatedAt: '2025-11-27T10:00:00Z',
-          ownerId: 1,
+          ownerId: 'user-1',
         });
       });
     });
@@ -296,7 +296,7 @@ describe('PostForm', () => {
           body: 'Test content',
           createdAt: '2025-11-27T10:00:00Z',
           updatedAt: '2025-11-27T10:00:00Z',
-          ownerId: 1,
+          ownerId: 'user-1',
         });
       });
     });
@@ -352,7 +352,7 @@ describe('PostForm', () => {
       body: 'Existing post body content',
       createdAt: '2025-11-20T10:00:00Z',
       updatedAt: '2025-11-27T10:00:00Z',
-      ownerId: 1,
+      ownerId: 'user-1',
     };
 
     it('pre-populates fields with post data in edit mode', () => {

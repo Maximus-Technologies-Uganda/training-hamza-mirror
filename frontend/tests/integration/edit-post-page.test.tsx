@@ -52,7 +52,7 @@ jest.mock('@/lib/api', () => ({
 
 // Mock auth functions - authenticated user who owns the post by default
 jest.mock('@/lib/auth', () => ({
-  getCurrentUser: jest.fn(() => ({ id: 1, email: 'alice@example.com' })),
+  getCurrentUser: jest.fn(() => ({ uid: 'user-1', email: 'alice@example.com' })),
   isAuthenticated: jest.fn(() => true),
   getToken: jest.fn(() => 'mock-token'),
   login: jest.fn(),
@@ -82,7 +82,7 @@ describe('EditPostClient', () => {
     body: 'This is test content for the post.',
     createdAt: '2025-11-27T10:00:00Z',
     updatedAt: '2025-11-27T10:00:00Z',
-    ownerId: 1, // Added ownerId to match authenticated user
+    ownerId: 'user-1', // Added ownerId to match authenticated user
   };
 
   beforeEach(() => {

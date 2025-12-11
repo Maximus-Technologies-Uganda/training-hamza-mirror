@@ -18,7 +18,7 @@ describe('PostList Accessibility', () => {
       body: 'This is accessible content.',
       createdAt: '2025-11-27T10:00:00Z',
       updatedAt: '2025-11-27T10:00:00Z',
-      ownerId: 1,
+      ownerId: 'user-1',
     },
     {
       id: 2,
@@ -27,7 +27,7 @@ describe('PostList Accessibility', () => {
       body: 'More accessible content.',
       createdAt: '2025-11-26T10:00:00Z',
       updatedAt: '2025-11-26T10:00:00Z',
-      ownerId: 1,
+      ownerId: 'user-1',
     },
   ];
 

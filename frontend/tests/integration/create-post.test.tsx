@@ -110,7 +110,7 @@ describe('Create Post Integration', () => {
         body: 'This is the content of my new blog post.',
         createdAt: '2025-11-27T10:00:00Z',
         updatedAt: '2025-11-27T10:00:00Z',
-        ownerId: 1,
+        ownerId: 'user-1',
       };
       mockCreatePost.mockResolvedValue(createdPost);
 
@@ -311,7 +311,7 @@ describe('Create Post Integration', () => {
           body: 'Test content',
           createdAt: '2025-11-27T10:00:00Z',
           updatedAt: '2025-11-27T10:00:00Z',
-          ownerId: 1,
+          ownerId: 'user-1',
         });
       });
     });

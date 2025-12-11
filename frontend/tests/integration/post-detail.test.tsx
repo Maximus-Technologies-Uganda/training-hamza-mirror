@@ -66,7 +66,7 @@ const mockPost: Post = {
   body: 'This is the full content of the integration test post.\n\nIt has multiple paragraphs for testing.',
   createdAt: '2025-11-27T10:00:00Z',
   updatedAt: '2025-11-28T15:30:00Z',
-  ownerId: 1, // Added ownerId for auth tests
+  ownerId: 'user-1', // Added ownerId for auth tests
 };
 
 // Helper to render with AuthProvider
@@ -209,7 +209,7 @@ describe('Post Detail Page Integration', () => {
 
   it('renders edit link when user is owner', async () => {
     // Mock authenticated user who owns the post
-    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ id: 1, email: 'alice@example.com' });
+    (authModule.getCurrentUser as jest.Mock).mockReturnValue({ uid: 'user-1', email: 'alice@example.com' });
     (authModule.isAuthenticated as jest.Mock).mockReturnValue(true);
     (authModule.getToken as jest.Mock).mockReturnValue('mock-token');
 

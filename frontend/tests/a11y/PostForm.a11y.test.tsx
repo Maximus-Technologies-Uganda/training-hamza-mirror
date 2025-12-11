@@ -51,7 +51,7 @@ describe('PostForm Accessibility', () => {
         body: 'Test body content',
         createdAt: '2025-11-27T10:00:00Z',
         updatedAt: '2025-11-27T10:00:00Z',
-        ownerId: 1,
+        ownerId: 'user-1',
       };
       const { container } = render(<PostForm post={existingPost} isEditMode />);
       const results = await axe(container);
@@ -221,7 +221,7 @@ describe('PostForm Accessibility', () => {
         body: 'Test body',
         createdAt: '2025-11-27T10:00:00Z',
         updatedAt: '2025-11-27T10:00:00Z',
-        ownerId: 1,
+        ownerId: 'user-1',
       };
       render(<PostForm post={existingPost} isEditMode />);
       const updateButton = screen.getByRole('button', { name: /update post/i });

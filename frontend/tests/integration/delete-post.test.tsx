@@ -34,7 +34,7 @@ jest.mock('@/lib/api', () => ({
 
 // Mock auth functions - authenticated user who owns the post
 jest.mock('@/lib/auth', () => ({
-  getCurrentUser: jest.fn(() => ({ id: 1, email: 'alice@example.com' })),
+  getCurrentUser: jest.fn(() => ({ uid: 'user-1', email: 'alice@example.com' })),
   isAuthenticated: jest.fn(() => true),
   getToken: jest.fn(() => 'mock-token'),
   login: jest.fn(),
@@ -110,7 +110,7 @@ const mockPost: Post = {
   body: 'This post will be deleted.',
   createdAt: '2025-11-20T10:00:00Z',
   updatedAt: '2025-11-27T15:30:00Z',
-  ownerId: 1, // Added ownerId matching the mocked user
+  ownerId: 'user-1', // Added ownerId matching the mocked user
 };
 
 const mockPostsList: Post[] = [
@@ -122,7 +122,7 @@ const mockPostsList: Post[] = [
     body: 'This post will remain.',
     createdAt: '2025-11-21T10:00:00Z',
     updatedAt: '2025-11-21T10:00:00Z',
-    ownerId: 1, // Added ownerId
+    ownerId: 'user-1', // Added ownerId
   },
 ];
 
