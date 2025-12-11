@@ -46,8 +46,8 @@ const MUTATION_RATE_LIMIT_MAX = parseInt(process.env.MUTATION_RATE_LIMIT_MAX || 
 const MUTATION_RATE_LIMIT_WINDOW = parseInt(process.env.MUTATION_RATE_LIMIT_WINDOW || '60000', 10); // 1 minute
 
 // Use JWT Auth instead of Firebase Auth (for local testing with newman/postman)
-// Set USE_JWT_AUTH=true to enable JWT authentication via /auth/login endpoint
-const USE_JWT_AUTH = process.env.USE_JWT_AUTH === 'true';
+// Default to JWT in non-production unless explicitly disabled
+const USE_JWT_AUTH = process.env.USE_JWT_AUTH !== 'false';
 
 // Auto-generate JWT_SECRET in development if not provided
 // In production, JWT_SECRET must be explicitly set
@@ -89,7 +89,15 @@ function resolveJwtSecret(options = {}) {
  * Uses dynamic import for SQLite to avoid loading native module when not needed
  */
 async function createStorage() {
-  if (STORAGE_TYPE === 'firestore') {
+  const effectiveStorage = NODE_ENV === 'test' ? 'memory' : STORAGE_TYPE;
+
+  if (effectiveStorage === 'firestore') {
+    // In non-production, avoid reaching out to Firestore unless explicitly forced
+    if (NODE_ENV !== 'production') {
+      console.warn('[WARN] Firestore storage disabled in non-production; using in-memory storage instead. Set STORAGE_TYPE=firestore with proper credentials to enable.');
+      return new MemoryStorage();
+    }
+
     if (!GCP_PROJECT_ID) {
       throw new Error('GCP_PROJECT_ID is required when using Firestore storage');
     }
@@ -100,7 +108,7 @@ async function createStorage() {
     });
   }
 
-  if (STORAGE_TYPE === 'sqlite') {
+  if (effectiveStorage === 'sqlite') {
     const { SQLiteStorage } = await import('./storage/sqlite-storage.js');
     return new SQLiteStorage(SQLITE_DB_PATH);
   }
@@ -175,8 +183,13 @@ export async function createServer(options = {}) {
   
   fastify.decorate('storage', storage);
   
-  // Log storage type on startup
-  fastify.log.info(`Using ${STORAGE_TYPE} storage adapter`);
+  // Log storage type on startup (note: tests force memory; firestore is disabled in non-prod unless explicitly enabled)
+  const storageTypeForLog = NODE_ENV === 'test'
+    ? 'memory (forced for test)'
+    : (STORAGE_TYPE === 'firestore' && NODE_ENV !== 'production')
+      ? 'memory (firestore disabled in non-prod)'
+      : STORAGE_TYPE;
+  fastify.log.info(`Using ${storageTypeForLog} storage adapter`);
 
   // Register request-id middleware (adds X-Request-Id to all responses)
   fastify.register(requestIdPlugin);
