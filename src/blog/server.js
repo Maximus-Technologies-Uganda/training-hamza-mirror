@@ -45,6 +45,10 @@ const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10)
 const MUTATION_RATE_LIMIT_MAX = parseInt(process.env.MUTATION_RATE_LIMIT_MAX || '10', 10);
 const MUTATION_RATE_LIMIT_WINDOW = parseInt(process.env.MUTATION_RATE_LIMIT_WINDOW || '60000', 10); // 1 minute
 
+// Use JWT Auth instead of Firebase Auth (for local testing with newman/postman)
+// Set USE_JWT_AUTH=true to enable JWT authentication via /auth/login endpoint
+const USE_JWT_AUTH = process.env.USE_JWT_AUTH === 'true';
+
 // Auto-generate JWT_SECRET in development if not provided
 // In production, JWT_SECRET must be explicitly set
 let JWT_SECRET = process.env.JWT_SECRET;
@@ -115,7 +119,7 @@ export async function createServer(options = {}) {
     skipCSRF,
     jwtSecret: providedJwtSecret,
     logger: providedLogger,
-    useJwtAuth,
+    useJwtAuth = USE_JWT_AUTH,
     ...fastifyOptions
   } = options;
 
@@ -204,7 +208,11 @@ export async function createServer(options = {}) {
   // Register audit logging middleware (adds auditService, request.auditCreate/Update/Delete)
   await fastify.register(auditPlugin);
   
-  fastify.log.info('JWT and Firebase authentication enabled');
+  if (useJwtAuth) {
+    fastify.log.info('JWT authentication mode enabled (USE_JWT_AUTH=true) - use /auth/login for tokens');
+  } else {
+    fastify.log.info('Firebase authentication enabled');
+  }
 
   // Populate firebaseUser early so rate limit keys can use per-user identity even in onRequest
   fastify.addHook('onRequest', fastify.optionalFirebaseAuth);

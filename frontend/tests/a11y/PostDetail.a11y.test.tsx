@@ -9,8 +9,6 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import PostDetail from '@/components/PostDetail';
 import type { Post } from '@/lib/types';
 
-expect.extend(toHaveNoViolations);
-
 describe('PostDetail Accessibility', () => {
   const mockPost: Post = {
     id: 1,

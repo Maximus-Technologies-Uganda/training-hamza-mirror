@@ -8,8 +8,6 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import PostForm from '@/components/PostForm';
-
-expect.extend(toHaveNoViolations);
 import type { Post } from '@/lib/types';
 
 // Mock next/navigation

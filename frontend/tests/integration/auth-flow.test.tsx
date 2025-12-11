@@ -264,7 +264,7 @@ describe('Auth Flow Integration', () => {
     const mockFirebaseUser = { uid: '123', email: 'alice@example.com', displayName: 'Alice' };
 
     beforeEach(() => {
-      mockGetCurrentUser.mockReturnValue({ id: 1, email: 'alice@example.com' });
+      mockGetCurrentUser.mockReturnValue({ id: 1, username: 'alice', email: 'alice@example.com' });
       mockIsAuthenticated.mockReturnValue(true);
       mockIsAdmin.mockResolvedValue(false);
     });
@@ -358,7 +358,7 @@ describe('Auth Flow Integration', () => {
 
   describe('AuthProvider', () => {
     it('provides auth state to children', async () => {
-      mockGetCurrentUser.mockReturnValue({ id: 1, email: 'alice@example.com' });
+      mockGetCurrentUser.mockReturnValue({ id: 1, username: 'alice', email: 'alice@example.com' });
       mockIsAuthenticated.mockReturnValue(true);
       mockIsAdmin.mockResolvedValue(false);
       

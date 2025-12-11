@@ -17,8 +17,6 @@ import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { LoginForm } from '@/components/LoginForm';
 
-expect.extend(toHaveNoViolations);
-
 // Mock AuthProvider
 const mockSignInWithEmail = jest.fn();
 

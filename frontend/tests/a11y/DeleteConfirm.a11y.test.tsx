@@ -10,8 +10,6 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import '@testing-library/jest-dom';
 import DeleteConfirm from '@/components/DeleteConfirm';
 
-expect.extend(toHaveNoViolations);
-
 describe('DeleteConfirm Accessibility', () => {
   const defaultProps = {
     postId: 1,

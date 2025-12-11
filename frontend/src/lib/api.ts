@@ -42,7 +42,8 @@ function getCSRFToken(): string | null {
   if (!csrfCookie) {
     return null;
   }
-  return csrfCookie.split('=')[1];
+  const [, token] = csrfCookie.split('=');
+  return token ?? null;
 }
 
 /**

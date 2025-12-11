@@ -19,6 +19,8 @@ const TOKEN_STORAGE_KEY = 'blog_auth_token';
 export interface AuthUser {
   id: number;
   username: string;
+  /** Optional email for parity with Firebase user objects used in tests */
+  email?: string | null;
 }
 
 /**

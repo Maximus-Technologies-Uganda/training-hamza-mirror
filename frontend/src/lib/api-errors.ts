@@ -139,10 +139,10 @@ export class ApiError extends Error {
     }
     // Try to extract retryAfter from error body (new nested format)
     const match = this.message.match(/wait (\d+) seconds/);
-    if (match) {
-      return parseInt(match[1], 10);
+    if (!match || !match[1]) {
+      return null;
     }
-    return null;
+    return parseInt(match[1], 10);
   }
 }
 
