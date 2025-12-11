@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Static export for GitHub Pages
-  output: 'export',
+  // Note: 'output: export' was removed because this app uses API routes (BFF pattern)
+  // which require a Node.js server runtime. Static export is incompatible with:
+  // - /api/posts/*, /api/auth/* route handlers
+  // - Dynamic routes without generateStaticParams
   
   images: {
     // Allow images from API domain
