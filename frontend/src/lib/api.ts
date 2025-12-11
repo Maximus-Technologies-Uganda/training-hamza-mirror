@@ -131,6 +131,14 @@ export async function fetchApi<T>(
     // Clone response to safely check for empty body
     const text = await response.text();
     if (!text) {
+      // For error responses with empty body, throw ApiError
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          response.statusText || 'Request failed',
+          'HttpError'
+        );
+      }
       return undefined as T;
     }
 

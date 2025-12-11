@@ -20,8 +20,8 @@ export interface Post {
   /** Post content (1-50000 characters, Markdown supported) */
   body: string;
   
-  /** Numeric user id of the post owner (matches backend auth model) */
-  ownerId: number;
+  /** Firebase UID string of the post owner (matches backend auth model) */
+  ownerId: string;
   
   /** ISO 8601 timestamp when post was created */
   createdAt: string;
