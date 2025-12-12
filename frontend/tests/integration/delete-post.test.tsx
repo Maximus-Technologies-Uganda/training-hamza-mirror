@@ -8,6 +8,7 @@ import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import type { Post } from '@/lib/types';
+import { AuthProvider } from '@/components/AuthProvider';
 
 // Mock the API module
 const mockDeletePost = jest.fn();
@@ -29,6 +30,16 @@ jest.mock('@/lib/api', () => ({
       this.name = 'ApiError';
     }
   },
+}));
+
+// Mock auth functions - authenticated user who owns the post
+jest.mock('@/lib/auth', () => ({
+  getCurrentUser: jest.fn(() => ({ uid: 'user-1', email: 'alice@example.com' })),
+  isAuthenticated: jest.fn(() => true),
+  getToken: jest.fn(() => 'mock-token'),
+  login: jest.fn(),
+  logout: jest.fn(),
+  getAuthHeaders: jest.fn(() => ({ Authorization: 'Bearer mock-token' })),
 }));
 
 // Mock next/navigation
@@ -83,6 +94,15 @@ jest.mock('swr', () => {
 import DeleteConfirm from '@/components/DeleteConfirm';
 import PostDetail from '@/components/PostDetail';
 
+// Helper to render with AuthProvider
+const renderWithAuth = (ui: React.ReactElement) => {
+  return render(
+    <AuthProvider>
+      {ui}
+    </AuthProvider>
+  );
+};
+
 const mockPost: Post = {
   id: 42,
   title: 'Post to Delete',
@@ -90,6 +110,7 @@ const mockPost: Post = {
   body: 'This post will be deleted.',
   createdAt: '2025-11-20T10:00:00Z',
   updatedAt: '2025-11-27T15:30:00Z',
+  ownerId: 'user-1', // Added ownerId matching the mocked user
 };
 
 const mockPostsList: Post[] = [
@@ -101,6 +122,7 @@ const mockPostsList: Post[] = [
     body: 'This post will remain.',
     createdAt: '2025-11-21T10:00:00Z',
     updatedAt: '2025-11-21T10:00:00Z',
+    ownerId: 'user-1', // Added ownerId
   },
 ];
 
@@ -115,14 +137,14 @@ describe('Delete Post Workflow Integration', () => {
 
   describe('Delete from PostDetail page', () => {
     it('shows delete button on post detail page', () => {
-      render(<PostDetail post={mockPost} />);
+      renderWithAuth(<PostDetail post={mockPost} />);
       
       expect(screen.getByRole('button', { name: /delete post/i })).toBeInTheDocument();
     });
 
     it('opens confirmation modal when delete button is clicked', async () => {
       const user = userEvent.setup();
-      render(<PostDetail post={mockPost} />);
+      renderWithAuth(<PostDetail post={mockPost} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       
@@ -134,7 +156,7 @@ describe('Delete Post Workflow Integration', () => {
 
     it('displays post title in confirmation dialog', async () => {
       const user = userEvent.setup();
-      render(<PostDetail post={mockPost} />);
+      renderWithAuth(<PostDetail post={mockPost} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       
@@ -144,7 +166,7 @@ describe('Delete Post Workflow Integration', () => {
 
     it('closes modal when cancel is clicked', async () => {
       const user = userEvent.setup();
-      render(<PostDetail post={mockPost} />);
+      renderWithAuth(<PostDetail post={mockPost} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -159,7 +181,7 @@ describe('Delete Post Workflow Integration', () => {
     it('calls deletePost API when confirmed', async () => {
       const user = userEvent.setup();
       const onDelete = jest.fn().mockResolvedValue(undefined);
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       // Open the modal
       await user.click(screen.getByRole('button', { name: /delete post/i }));
@@ -186,7 +208,7 @@ describe('Delete Post Workflow Integration', () => {
         resolveDelete = resolve;
       });
       const onDelete = jest.fn().mockReturnValue(deletePromise);
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -213,7 +235,7 @@ describe('Delete Post Workflow Integration', () => {
     it('redirects to homepage after successful deletion', async () => {
       const user = userEvent.setup();
       const onDelete = jest.fn().mockResolvedValue(undefined);
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -229,7 +251,7 @@ describe('Delete Post Workflow Integration', () => {
     it('removes post from list after deletion', async () => {
       const user = userEvent.setup();
       const onDelete = jest.fn().mockResolvedValue(undefined);
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -250,7 +272,7 @@ describe('Delete Post Workflow Integration', () => {
       (networkError as any).statusCode = 0;
       const onDelete = jest.fn().mockRejectedValue(networkError);
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -269,7 +291,7 @@ describe('Delete Post Workflow Integration', () => {
       (notFoundError as any).statusCode = 404;
       const onDelete = jest.fn().mockRejectedValue(notFoundError);
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -288,7 +310,7 @@ describe('Delete Post Workflow Integration', () => {
       (serverError as any).statusCode = 500;
       const onDelete = jest.fn().mockRejectedValue(serverError);
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -309,7 +331,7 @@ describe('Delete Post Workflow Integration', () => {
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce(undefined);
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       // First attempt fails
       await user.click(screen.getByRole('button', { name: /delete post/i }));
@@ -327,7 +349,7 @@ describe('Delete Post Workflow Integration', () => {
       const user = userEvent.setup();
       const onDelete = jest.fn().mockRejectedValue(new Error('Failed'));
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -345,7 +367,7 @@ describe('Delete Post Workflow Integration', () => {
       const user = userEvent.setup();
       const onDelete = jest.fn().mockRejectedValue(new Error('Failed'));
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -363,7 +385,7 @@ describe('Delete Post Workflow Integration', () => {
   describe('Keyboard navigation', () => {
     it('closes modal with Escape key', async () => {
       const user = userEvent.setup();
-      render(<PostDetail post={mockPost} />);
+      renderWithAuth(<PostDetail post={mockPost} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -376,7 +398,7 @@ describe('Delete Post Workflow Integration', () => {
     it('confirms with Enter key on confirm button', async () => {
       const user = userEvent.setup();
       const onDelete = jest.fn().mockResolvedValue(undefined);
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       
@@ -394,7 +416,7 @@ describe('Delete Post Workflow Integration', () => {
 
     it('traps focus within modal', async () => {
       const user = userEvent.setup();
-      render(<PostDetail post={mockPost} />);
+      renderWithAuth(<PostDetail post={mockPost} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       
@@ -409,7 +431,7 @@ describe('Delete Post Workflow Integration', () => {
   describe('Accessibility', () => {
     it('has accessible dialog structure', async () => {
       const user = userEvent.setup();
-      render(<PostDetail post={mockPost} />);
+      renderWithAuth(<PostDetail post={mockPost} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       
@@ -423,7 +445,7 @@ describe('Delete Post Workflow Integration', () => {
       const user = userEvent.setup();
       const onDelete = jest.fn().mockRejectedValue(new Error('Delete failed'));
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -442,7 +464,7 @@ describe('Delete Post Workflow Integration', () => {
       (notFoundError as any).statusCode = 404;
       const onDelete = jest.fn().mockRejectedValue(notFoundError);
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       const dialog = screen.getByRole('dialog');
@@ -461,7 +483,7 @@ describe('Delete Post Workflow Integration', () => {
       });
       const onDelete = jest.fn().mockReturnValue(deletePromise);
       
-      render(<PostDetail post={mockPost} onDelete={onDelete} />);
+      renderWithAuth(<PostDetail post={mockPost} onDelete={onDelete} />);
       
       await user.click(screen.getByRole('button', { name: /delete post/i }));
       

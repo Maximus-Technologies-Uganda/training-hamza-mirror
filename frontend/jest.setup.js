@@ -3,6 +3,12 @@ const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// Mock Firebase environment variables for tests
+// Using a properly formatted fake API key (39 characters, alphanumeric with hyphens and underscores)
+process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'AIzaSyDtVx7Z8QwXxYz1234567890abcdefGHIJK';
+process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test-project.firebaseapp.com';
+process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project';
+
 // Node.js 18+ has built-in fetch, but we need to ensure globals are set for MSW
 if (!global.fetch) {
   const nodeFetch = require('node-fetch');

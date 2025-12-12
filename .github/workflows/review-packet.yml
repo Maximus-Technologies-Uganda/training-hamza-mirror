@@ -94,10 +94,26 @@ jobs:
           echo "" >> review-packet/coverage-summary.md
           echo "**Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> review-packet/coverage-summary.md
           echo "" >> review-packet/coverage-summary.md
+          
+          # Debug: Show what files exist
+          echo "=== Looking for coverage files ===" 
+          ls -la frontend/coverage/ 2>/dev/null || echo "No coverage directory"
+          
+          # Check for coverage-summary.json in various locations
+          COVERAGE_FILE=""
           if [ -f frontend/coverage/coverage-summary.json ]; then
+            COVERAGE_FILE="frontend/coverage/coverage-summary.json"
+          elif [ -f frontend/coverage/lcov-report/coverage-summary.json ]; then
+            COVERAGE_FILE="frontend/coverage/lcov-report/coverage-summary.json"
+          fi
+          
+          if [ -n "$COVERAGE_FILE" ]; then
+            echo "✅ Found coverage file: $COVERAGE_FILE"
             node -e "
-              const summary = require('./frontend/coverage/coverage-summary.json');
+              const summary = require('./$COVERAGE_FILE');
               const total = summary.total;
+              console.log('### frontend-next (Jest)');
+              console.log('');
               console.log('| Metric | Coverage | Threshold |');
               console.log('|--------|----------|-----------|');
               console.log('| Statements | ' + total.statements.pct + '% | ≥50% |');
@@ -106,14 +122,27 @@ jobs:
               console.log('| Lines | ' + total.lines.pct + '% | ≥45% critical |');
               console.log('');
               const passed = total.statements.pct >= 50;
-              console.log('**Status**: ' + (passed ? '✅ Coverage threshold met' : '⚠️ Coverage below 50%'));
+              console.log('**Status**: ' + (passed ? '✅ Coverage threshold met (' + total.statements.pct + '% ≥ 50%)' : '⚠️ Coverage below 50%'));
             " >> review-packet/coverage-summary.md
             mkdir -p review-packet/coverage/frontend
             cp -r frontend/coverage/* review-packet/coverage/frontend/ 2>/dev/null || true
+            echo "" >> review-packet/coverage-summary.md
+            echo "📊 [Full Coverage Report](./coverage/frontend/lcov-report/index.html)" >> review-packet/coverage-summary.md
           else
-            echo "⚠️ Frontend coverage data not available" >> review-packet/coverage-summary.md
+            # Try to extract from test output if JSON not available
+            if [ -f review-packet/frontend-test-output.txt ]; then
+              echo "### frontend-next (from test output)" >> review-packet/coverage-summary.md
+              echo "" >> review-packet/coverage-summary.md
+              grep -A 10 "Coverage summary" review-packet/frontend-test-output.txt >> review-packet/coverage-summary.md 2>/dev/null || \
+              grep -A 10 "Statements" review-packet/frontend-test-output.txt >> review-packet/coverage-summary.md 2>/dev/null || \
+              echo "⚠️ Frontend coverage data not available - coverage-summary.json not found" >> review-packet/coverage-summary.md
+            else
+              echo "⚠️ Frontend coverage data not available" >> review-packet/coverage-summary.md
+            fi
           fi
         continue-on-error: true
+        env:
+          COVERAGE_FILE: ""
 
       - name: Run frontend integration tests
         run: npm run test:integration 2>&1 | tee ../review-packet/integration-test-output.txt
@@ -147,46 +176,43 @@ jobs:
         working-directory: frontend
         continue-on-error: true
 
+      - name: Install wait-on for server readiness
+        run: npm install -g wait-on
+
       - name: Start servers for E2E tests
         run: |
           # Start API server on port 3000
           PORT=3000 node src/blog/server.js &
           echo $! > /tmp/api-server.pid
           
-          # Wait for API server to be ready (max 30 seconds)
+          # Wait for API server to be ready using wait-on (max 30 seconds)
           echo "Waiting for API server on port 3000..."
-          for i in {1..30}; do
-            if curl -s http://localhost:3000/api/posts > /dev/null 2>&1; then
-              echo "✅ API server is ready"
-              break
-            fi
-            echo "  Attempt $i: API server not ready yet..."
-            sleep 1
-          done
+          npx wait-on http://localhost:3000/health --timeout 30000 || {
+            echo "❌ API server failed to start"
+            exit 1
+          }
+          echo "✅ API server is ready"
           
           # Start frontend on port 5000 (using production build)
           cd frontend
-          npm run build
-          npm run start &
+          # Build was already done in earlier step, just start the server
+          PORT=5000 npm run start &
           echo $! > /tmp/frontend-server.pid
           cd ..
           
-          # Wait for frontend server to be ready (max 60 seconds)
+          # Wait for frontend server to be ready using wait-on (max 60 seconds)
           echo "Waiting for frontend server on port 5000..."
-          for i in {1..60}; do
-            if curl -s http://localhost:5000 > /dev/null 2>&1; then
-              echo "✅ Frontend server is ready"
-              break
-            fi
-            echo "  Attempt $i: Frontend server not ready yet..."
-            sleep 1
-          done
+          npx wait-on http://localhost:5000 --timeout 60000 || {
+            echo "❌ Frontend server failed to start"
+            exit 1
+          }
+          echo "✅ Frontend server is ready"
           
           # Final verification
           echo ""
           echo "=== Server Status ==="
-          curl -s http://localhost:3000/api/posts > /dev/null 2>&1 && echo "✅ API server (3000): Running" || echo "❌ API server (3000): Not responding"
-          curl -s http://localhost:5000 > /dev/null 2>&1 && echo "✅ Frontend server (5000): Running" || echo "❌ Frontend server (5000): Not responding"
+          curl -s http://localhost:3000/health && echo " - API server (3000): Running"
+          curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 && echo " - Frontend server (5000): Running"
         env:
           PORT: '3000'
           NEXT_PUBLIC_API_URL: http://localhost:3000

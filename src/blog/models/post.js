@@ -27,7 +27,7 @@ export const postValidation = {
 export const postSchema = {
   $id: 'post',
   type: 'object',
-  required: ['id', 'title', 'slug', 'body', 'createdAt', 'updatedAt'],
+  required: ['id', 'title', 'slug', 'body', 'ownerId', 'createdAt', 'updatedAt'],
   properties: {
     id: {
       type: 'integer',
@@ -52,6 +52,11 @@ export const postSchema = {
       maxLength: postValidation.body.maxLength,
       pattern: postValidation.body.pattern,
       description: 'Post content (non-whitespace)'
+    },
+    ownerId: {
+      type: 'string',
+      minLength: 1,
+      description: 'Firebase UID of the user who created this post'
     },
     createdAt: {
       type: 'string',

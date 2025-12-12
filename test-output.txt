@@ -1,0 +1,61 @@
+﻿
+[1m[46m RUN [49m[22m [36mv4.0.10 [39m[90mC:/Users/MATRIXCOMPUTER/Desktop/Maximus/training-hamza[39m
+
+ [32mΓ£ô[39m tests/blog/unit/sqlite-storage.test.js [2m([22m[2m29 tests[22m[2m)[22m[33m 7532[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m should return empty array when no posts exist [33m 314[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m should return all posts ordered by createdAt DESC [33m 2454[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m should preserve createdAt timestamp [33m 311[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m should update updatedAt timestamp [33m 1279[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m should persist data across storage instance recreations [33m 551[2mms[22m[39m
+[90mstdout[2m | tests/blog/contract/request-tracing.contract.test.js[2m > [22m[2mRequest Tracing - Contract Tests (US8)
+[22m[39m[OK] Created test user 'alice' (id: 1)
+
+[90mstdout[2m | tests/blog/contract/request-tracing.contract.test.js[2m > [22m[2mRequest Tracing - Contract Tests (US8)
+[22m[39m[OK] Created test user 'bob' (id: 2)
+
+ [32mΓ£ô[39m tests/blog/contract/request-tracing.contract.test.js [2m([22m[2m15 tests[22m[2m)[22m[33m 2120[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m 403 Forbidden includes requestId in error body [33m 317[2mms[22m[39m
+[90mstdout[2m | tests/blog/contract/auth.contract.test.js[2m > [22m[2mBlog Auth API - Contract Tests
+[22m[39m[OK] Created test user 'alice' (id: 1)
+
+[90mstdout[2m | tests/blog/contract/auth.contract.test.js[2m > [22m[2mBlog Auth API - Contract Tests
+[22m[39m[OK] Created test user 'bob' (id: 2)
+
+ [32mΓ£ô[39m tests/blog/contract/auth.contract.test.js [2m([22m[2m11 tests[22m[2m)[22m[33m 2891[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m T020: should return valid JWT token that can be decoded [33m 694[2mms[22m[39m
+ [32mΓ£ô[39m tests/hello.test.js [2m([22m[2m9 tests[22m[2m)[22m[33m 738[2mms[22m[39m
+[90mstdout[2m | tests/blog/contract/posts-api.test.js[2m > [22m[2mBlog Posts API - Contract Tests
+[22m[39m[OK] Created test user 'alice' (id: 1)
+
+[90mstdout[2m | tests/blog/contract/posts-api.test.js[2m > [22m[2mBlog Posts API - Contract Tests
+[22m[39m[OK] Created test user 'bob' (id: 2)
+
+ [32mΓ£ô[39m tests/blog/contract/posts-api.test.js [2m([22m[2m30 tests[22m[2m)[22m[33m 1141[2mms[22m[39m
+[90mstdout[2m | tests/blog/integration/ownership.test.js[2m > [22m[2mPost Ownership Integration Tests
+[22m[39m[OK] Created test user 'alice' (id: 1)
+
+[90mstdout[2m | tests/blog/integration/ownership.test.js[2m > [22m[2mPost Ownership Integration Tests
+[22m[39m[OK] Created test user 'bob' (id: 2)
+
+ [32mΓ£ô[39m tests/blog/integration/ownership.test.js [2m([22m[2m6 tests[22m[2m)[22m[33m 888[2mms[22m[39m
+[90mstdout[2m | tests/blog/contract/auth-token.contract.test.js[2m > [22m[2mAuth Token Validation - Contract Tests
+[22m[39m[OK] Created test user 'alice' (id: 1)
+
+[90mstdout[2m | tests/blog/contract/auth-token.contract.test.js[2m > [22m[2mAuth Token Validation - Contract Tests
+[22m[39m[OK] Created test user 'bob' (id: 2)
+
+ [32mΓ£ô[39m tests/blog/contract/auth-token.contract.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 872[2mms[22m[39m
+[90mstdout[2m | tests/blog/contract/validation.contract.test.js[2m > [22m[2mValidation Contract Tests - 422 Responses
+[22m[39m[OK] Created test user 'alice' (id: 1)
+
+[90mstdout[2m | tests/blog/contract/validation.contract.test.js[2m > [22m[2mValidation Contract Tests - 422 Responses
+[22m[39m[OK] Created test user 'bob' (id: 2)
+
+ [32mΓ£ô[39m tests/blog/contract/validation.contract.test.js [2m([22m[2m20 tests[22m[2m)[22m[33m 825[2mms[22m[39m
+[90mstdout[2m | tests/blog/unit/auth-middleware.test.js[2m > [22m[2mAuth Middleware - Unit Tests
+[22m[39m[OK] Created test user 'alice' (id: 1)
+
+[90mstdout[2m | tests/blog/unit/auth-middleware.test.js[2m > [22m[2mAuth Middleware - Unit Tests
+[22m[39m[OK] Created test user 'bob' (id: 2)
+
+ [32mΓ£ô[39m tests/blog/unit/auth-middleware.test.js [2m([22m[2m9 tests[22m[2m)[22m[33m 840[2mms[22m[39m

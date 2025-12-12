@@ -2,12 +2,83 @@
 
 CLI applications and REST APIs to demonstrate testing, TDD, and production-ready development workflows.
 
+## 🚀 Live Demo
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Frontend (SSR)** | [Cloud Run Frontend](https://blog-frontend-prod-xxxxxxxxxx-uc.a.run.app) | Next.js SSR on Cloud Run |
+| **Backend API** | [Cloud Run API](https://blog-api-prod-xxxxxxxxxx-uc.a.run.app) | Fastify Blog API on Cloud Run |
+| **API Docs** | [Swagger UI](https://blog-api-prod-xxxxxxxxxx-uc.a.run.app/docs) | Interactive API documentation |
+| **Frontend (Static)** | [GitHub Pages](https://maximus-technologies-uganda.github.io/training-hamza/) | Static fallback (limited features) |
+
+> **Note**: Cloud Run URLs are private by default. Contact the team for access tokens or use local development.
+
+---
+
+## Run & Try
+
+### Environment Variables
+
+#### Backend (Blog API)
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `PORT` | No | Port for the Blog API server | `3000` |
+| `NODE_ENV` | No | Environment mode (`development`, `production`, `test`) | `development` |
+| `JWT_SECRET` | Yes (prod) | Secret key for JWT token signing | Auto-generated in dev |
+| `DATABASE_URL` | No | SQLite database path | `./data/blog.db` |
+| `RATE_LIMIT_MAX` | No | Max requests per window | `100` |
+| `RATE_LIMIT_WINDOW` | No | Rate limit time window (ms) | `60000` |
+
+#### Frontend (Next.js)
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `NEXT_PUBLIC_API_URL` | Yes | Public API URL (browser calls) | `http://localhost:3000` |
+| `API_BASE_URL` | Yes (SSR) | Server-side API URL (not exposed to browser) | Same as `NEXT_PUBLIC_API_URL` |
+| `PORT` | No | Port for the Next.js server | `5000` |
+
+#### Cloud Run Deployment
+
+| Variable | Required | Description | Source |
+|----------|----------|-------------|--------|
+| `GCP_PROJECT_ID` | Yes | Google Cloud project ID | Terraform output |
+| `GCP_REGION` | Yes | Cloud Run region | Terraform output |
+| `GCP_ARTIFACT_REGISTRY` | Yes | Docker image registry URL | Terraform output |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Yes | WIF provider for GitHub Actions | Terraform output |
+| `GCP_SERVICE_ACCOUNT` | Yes | Service account for deployments | Terraform output |
+
+### Quick Local Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/Maximus-Technologies-Uganda/training-hamza.git
+cd training-hamza
+
+# Install all dependencies
+npm install
+cd frontend && npm install && cd ..
+
+# Terminal 1: Start the Blog API (port 3000)
+node src/blog/server.js
+
+# Terminal 2: Start the Frontend (port 5000)
+cd frontend
+NEXT_PUBLIC_API_URL=http://localhost:3000 API_BASE_URL=http://localhost:3000 npm run dev
+```
+
+Open [http://localhost:5000](http://localhost:5000) in your browser.
+
+---
+
 ## Projects Overview
 
 This repository contains multiple projects demonstrating progressive complexity:
 
 1. **CLI Applications** (Chapter 1-4): Hello, Stopwatch, and Temperature converter CLIs
 2. **Blog Posts API** (Week 5): Production-shaped REST API with CRUD operations, validation, and error handling
+3. **Blog Frontend** (Chapter 6): Next.js frontend with full CRUD, accessibility, and testing
+4. **Blog Auth** (Chapter 7): JWT authentication and authorization for the Blog API
 
 ## Chapter 1 Summary
 
@@ -65,6 +136,82 @@ A production-shaped REST API for managing blog posts with full CRUD operations, 
 - ✅ **Health Monitoring**: `/health` endpoint for service monitoring
 - ✅ **Swappable Storage**: In-memory storage with optional SQLite adapter
 - ✅ **OpenAPI Specification**: Full API documentation following OpenAPI 3.1
+- ✅ **Authentication**: JWT-based login with username/password
+- ✅ **Authorization**: Ownership-based access control for write operations
+- ✅ **Request Tracing**: X-Request-Id header for debugging and correlation
+
+### Authentication & Authorization
+
+The API uses JWT (JSON Web Tokens) for authentication. Read operations are public; write operations require authentication.
+
+#### How to Sign In
+
+1. **Login** via POST `/auth/login`:
+   ```bash
+   curl -X POST http://localhost:3000/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username": "alice", "password": "password123"}'
+   ```
+
+2. **Response** includes a JWT token:
+   ```json
+   {
+     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     "user": { "id": 1, "username": "alice" }
+   }
+   ```
+
+3. **Use the token** in subsequent requests:
+   ```bash
+   curl -X POST http://localhost:3000/posts \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer <your-token>" \
+     -d '{"title": "My Post", "body": "Content here"}'
+   ```
+
+#### How to Sign Out
+
+Sign out is handled client-side by removing the JWT token from storage (localStorage in the frontend). There is no server-side logout endpoint as JWTs are stateless.
+
+```javascript
+// Frontend logout example
+localStorage.removeItem('token');
+localStorage.removeItem('user');
+```
+
+#### Protected Actions
+
+| Action | Authentication Required | Ownership Required |
+|--------|------------------------|-------------------|
+| List posts (GET /posts) | ❌ No | ❌ No |
+| View post (GET /posts/:id) | ❌ No | ❌ No |
+| Create post (POST /posts) | ✅ Yes | ❌ No |
+| Update post (PATCH /posts/:id) | ✅ Yes | ✅ Yes (must own) |
+| Delete post (DELETE /posts/:id) | ✅ Yes | ✅ Yes (must own) |
+
+#### Error Responses
+
+- **401 Unauthorized**: Missing or invalid token
+  ```json
+  {"error": {"code": "UNAUTHORIZED", "message": "Authentication required", "requestId": "..."}}
+  ```
+
+- **403 Forbidden**: Authenticated but not authorized (not the post owner)
+  ```json
+  {"error": {"code": "FORBIDDEN", "message": "Not authorized to access this resource", "requestId": "..."}}
+  ```
+
+#### Environment Variables for Auth
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `JWT_SECRET` | Yes (prod) | Secret key for signing JWT tokens | Auto-generated in dev |
+| `JWT_EXPIRES_IN` | No | Token expiration time | `24h` |
+
+#### Initial Production User
+
+- Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` (or `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD`) in production to seed a bootstrap admin account at startup.
+- If no credentials are provided and no users exist, the server will create an `admin` user with a generated password and log it once; store it securely and change it after first login.
 
 ### Quick Start
 
@@ -690,7 +837,7 @@ npm install
 
 # Configure API URL
 cp .env.example .env.local
-# Edit .env.local and set NEXT_PUBLIC_API_URL=http://localhost:3001
+# Edit .env.local and set NEXT_PUBLIC_API_URL=http://localhost:3000
 
 # Start development server
 npm run dev

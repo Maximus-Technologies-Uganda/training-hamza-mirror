@@ -8,11 +8,14 @@
  * - Keyboard navigation (Escape to close, Enter/Space to activate)
  * - Loading and error states
  * - Screen reader announcements
+ * - Auth-aware error display (US7)
  */
 
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import AuthErrorMessage from './AuthErrorMessage';
+import { isAuthenticationError, isAuthorizationError } from '@/lib/errors';
 
 interface DeleteConfirmProps {
   /** ID of the post to delete */
@@ -25,6 +28,8 @@ interface DeleteConfirmProps {
   isLoading?: boolean;
   /** Error message to display */
   error?: string;
+  /** Auth error HTTP status code for auth-aware display (401/403) */
+  authErrorStatus?: number;
   /** Called when the modal should close (Cancel, Escape, backdrop click) */
   onClose: () => void;
   /** Called when the user confirms deletion */
@@ -37,12 +42,16 @@ export default function DeleteConfirm({
   isOpen,
   isLoading = false,
   error,
+  authErrorStatus,
   onClose,
   onConfirm,
 }: DeleteConfirmProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Check if this is an auth error that needs special display
+  const isAuthError = authErrorStatus && (isAuthenticationError(authErrorStatus) || isAuthorizationError(authErrorStatus));
 
   // IDs for ARIA attributes
   const titleId = `delete-dialog-title-${postId}`;
@@ -194,8 +203,16 @@ export default function DeleteConfirm({
           This action cannot be undone.
         </p>
 
-        {/* Error message */}
-        {error && (
+        {/* Error message - use AuthErrorMessage for 401/403 auth errors (US7) */}
+        {error && isAuthError && authErrorStatus && (
+          <div className="mb-4">
+            <AuthErrorMessage
+              status={authErrorStatus}
+              context="delete"
+            />
+          </div>
+        )}
+        {error && !isAuthError && (
           <div
             role="alert"
             aria-live="assertive"

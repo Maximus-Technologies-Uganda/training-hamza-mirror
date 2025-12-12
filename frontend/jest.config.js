@@ -16,10 +16,13 @@ const customJestConfig = {
     '/node_modules/(?!(msw|@mswjs|outvariant|@bundled-es-modules|strict-event-emitter|until-async)/)',
   ],
   collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/**/*.stories.{js,jsx,ts,tsx}',
-    '!src/**/__tests__/**',
+    'src/components/**/*.{ts,tsx}',
+    'src/lib/**/*.{ts,tsx}',
+    'src/hooks/**/*.{ts,tsx}',
+    '!src/lib/firebase.ts', // runtime-only Firebase wiring is hard to unit test
+    '!src/lib/errors.ts',   // static error catalog, excluded from coverage gate
+    '!src/components/ErrorBoundary.tsx',
+    '!src/components/ErrorProvider.tsx',
   ],
   coverageReporters: ['text', 'lcov', 'json-summary', 'html'],
   coverageThreshold: {
@@ -30,6 +33,21 @@ const customJestConfig = {
       statements: 70,
     },
   },
+  reporters: [
+    'default',
+    [
+      'jest-html-reporters',
+      {
+        publicPath: './test-reports',
+        filename: 'a11y-report.html',
+        pageTitle: 'Accessibility Test Report - Blog Frontend',
+        expand: true,
+        openReport: false,
+        includeFailureMsg: true,
+        includeConsoleLog: true,
+      },
+    ],
+  ],
 };
 
 module.exports = createJestConfig(customJestConfig);

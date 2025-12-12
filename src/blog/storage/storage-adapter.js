@@ -54,4 +54,43 @@ export class StorageAdapter {
   async deletePost(id) {
     throw new Error('deletePost() must be implemented by storage adapter');
   }
+
+  // ==================== User Methods ====================
+
+  /**
+   * Create a new user
+   * @param {Object} userData - User data containing username and passwordHash
+   * @param {string} userData.username - Unique username
+   * @param {string} userData.passwordHash - bcrypt hashed password
+   * @returns {Promise<Object>} Created user with id and timestamps
+   */
+  async createUser(userData) {
+    throw new Error('createUser() must be implemented by storage adapter');
+  }
+
+  /**
+   * Retrieve a user by ID
+   * @param {number} id - User ID
+   * @returns {Promise<Object|null>} User object or null if not found
+   */
+  async getUser(id) {
+    throw new Error('getUser() must be implemented by storage adapter');
+  }
+
+  /**
+   * Retrieve a user by username
+   * @param {string} username - Username to search for
+   * @returns {Promise<Object|null>} User object or null if not found
+   */
+  async getUserByUsername(username) {
+    throw new Error('getUserByUsername() must be implemented by storage adapter');
+  }
+
+  /**
+   * Determine if at least one user exists
+   * @returns {Promise<boolean>} true when any user is present, false otherwise
+   */
+  async hasAnyUsers() {
+    throw new Error('hasAnyUsers() must be implemented by storage adapter');
+  }
 }

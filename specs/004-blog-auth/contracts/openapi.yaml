@@ -1,0 +1,636 @@
+openapi: 3.1.0
+info:
+  title: Blog Posts API (with Auth)
+  description: |
+    A production-shaped REST API for blog post management with authentication,
+    authorization, CRUD operations, validation, error handling, and rate limiting.
+    
+    ## Authentication
+    
+    This API uses JWT Bearer tokens for authentication. Obtain a token via the
+    `/auth/login` endpoint and include it in the `Authorization` header:
+    
+    ```
+    Authorization: Bearer <token>
+    ```
+    
+    ## Authorization
+    
+    - **Read operations** (GET /posts, GET /posts/{id}) are public
+    - **Write operations** (POST, PATCH, DELETE) require authentication
+    - **Update/Delete** require ownership (user must own the post)
+    
+  version: 2.0.0
+  contact:
+    name: Training Project
+    url: https://github.com/Maximus-Technologies-Uganda/training-hamza
+  license:
+    name: ISC
+    url: https://opensource.org/licenses/ISC
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://blog-api-dev-xxxxxxxxxx-uc.a.run.app
+    description: Cloud Run development environment
+
+tags:
+  - name: auth
+    description: Authentication endpoints
+  - name: health
+    description: Service health monitoring
+  - name: posts
+    description: Blog post CRUD operations
+
+# Security schemes definition
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    # Authentication schemas
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: alice
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          format: password
+          example: password123
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          description: JWT access token (24-hour expiry)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          type: object
+          required:
+            - id
+            - username
+          properties:
+            id:
+              type: integer
+              example: 1
+            username:
+              type: string
+              example: alice
+
+    # Post schemas (extended with ownerId)
+    Post:
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - body
+        - ownerId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          description: Unique post identifier
+          example: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Post title
+          example: Getting Started with Node.js
+        slug:
+          type: string
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          description: URL-friendly slug
+          example: getting-started-with-nodejs
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: Post content
+          example: Node.js is a JavaScript runtime...
+        ownerId:
+          type: integer
+          minimum: 1
+          description: ID of the user who created this post
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601)
+          example: '2025-12-05T12:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last modification timestamp (ISO 8601)
+          example: '2025-12-05T12:00:00.000Z'
+
+    CreatePostRequest:
+      type: object
+      required:
+        - title
+        - body
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Post title (non-whitespace)
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: Post content (non-whitespace)
+
+    UpdatePostRequest:
+      type: object
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Updated post title
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: Updated post content
+
+    # Health schema (extended)
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+        - uptime
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        version:
+          type: string
+          description: API version
+          example: '2.0.0'
+        uptime:
+          type: integer
+          description: Uptime in seconds
+          example: 3600
+        timestamp:
+          type: string
+          format: date-time
+          example: '2025-12-05T12:00:00.000Z'
+
+    # Error schemas
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - requestId
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Title is required
+            requestId:
+              type: string
+              format: uuid
+              description: Request correlation ID
+              example: 550e8400-e29b-41d4-a716-446655440000
+
+    UnauthorizedError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            error:
+              properties:
+                code:
+                  enum: [UNAUTHORIZED, INVALID_TOKEN]
+                  example: UNAUTHORIZED
+                message:
+                  example: Authentication required
+
+    ForbiddenError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            error:
+              properties:
+                code:
+                  enum: [FORBIDDEN]
+                  example: FORBIDDEN
+                message:
+                  example: Not authorized to access this resource
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthorizedError'
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                error:
+                  code: UNAUTHORIZED
+                  message: Authentication required
+                  requestId: 550e8400-e29b-41d4-a716-446655440000
+            invalidToken:
+              summary: Invalid or expired token
+              value:
+                error:
+                  code: INVALID_TOKEN
+                  message: Token expired or invalid
+                  requestId: 550e8400-e29b-41d4-a716-446655440000
+
+    Forbidden:
+      description: Authenticated but not authorized (not owner)
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ForbiddenError'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Not authorized to access this resource
+              requestId: 550e8400-e29b-41d4-a716-446655440000
+
+    ValidationError:
+      description: Request validation failed (400 - malformed request)
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnprocessableEntity:
+      description: Request understood but semantically invalid (422 - business rule violation)
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            duplicateSlug:
+              summary: Duplicate slug
+              value:
+                error:
+                  code: DUPLICATE_SLUG
+                  message: A post with this slug already exists
+                  requestId: 550e8400-e29b-41d4-a716-446655440000
+            invalidContent:
+              summary: Invalid content
+              value:
+                error:
+                  code: UNPROCESSABLE_ENTITY
+                  message: Post content violates content policy
+                  requestId: 550e8400-e29b-41d4-a716-446655440000
+
+    NotFound:
+      description: Resource not found
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  parameters:
+    PostId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Post unique identifier
+
+paths:
+  # Authentication endpoints
+  /auth/login:
+    post:
+      summary: Authenticate user
+      description: |
+        Authenticate with username and password to receive a JWT token.
+        Token is valid for 24 hours.
+      operationId: login
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              alice:
+                summary: Login as alice
+                value:
+                  username: alice
+                  password: password123
+              bob:
+                summary: Login as bob
+                value:
+                  username: bob
+                  password: password456
+      responses:
+        '200':
+          description: Authentication successful
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid credentials
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Invalid username or password
+                  requestId: 550e8400-e29b-41d4-a716-446655440000
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  # Health endpoint (extended)
+  /health:
+    get:
+      summary: Health check
+      description: Returns service health status with version and uptime
+      operationId: getHealth
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # Posts endpoints (with auth requirements)
+  /posts:
+    get:
+      summary: List all posts
+      description: Retrieve a list of all blog posts (public, no auth required)
+      operationId: listPosts
+      tags:
+        - posts
+      responses:
+        '200':
+          description: Successful response with list of posts
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create a new post
+      description: |
+        Create a new blog post. Requires authentication.
+        The post will be associated with the authenticated user.
+      operationId: createPost
+      tags:
+        - posts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created successfully
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /posts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+
+    get:
+      summary: Get a post by ID
+      description: Retrieve a single blog post (public, no auth required)
+      operationId: getPostById
+      tags:
+        - posts
+      responses:
+        '200':
+          description: Post found
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Update a post
+      description: |
+        Update an existing post. Requires authentication and ownership.
+        Only the post owner can update the post.
+      operationId: updatePost
+      tags:
+        - posts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          description: Post updated successfully
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete a post
+      description: |
+        Delete an existing post. Requires authentication and ownership.
+        Only the post owner can delete the post.
+      operationId: deletePost
+      tags:
+        - posts
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Post deleted successfully
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'

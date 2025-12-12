@@ -25,6 +25,7 @@ describe('usePost', () => {
     body: 'Test content',
     createdAt: '2025-11-27T10:00:00Z',
     updatedAt: '2025-11-27T10:00:00Z',
+    ownerId: 'user-1',
   };
 
   const mockMutate = jest.fn();

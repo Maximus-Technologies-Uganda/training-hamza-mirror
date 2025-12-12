@@ -1,0 +1,725 @@
+openapi: 3.1.0
+info:
+  title: Blog Posts API (with Firebase Auth & Roles)
+  description: |
+    A production-ready REST API for blog post management with Firebase Authentication,
+    role-based authorization, CRUD operations, validation, rate limiting, and audit logging.
+    
+    ## Authentication
+    
+    This API uses Firebase Auth ID tokens for authentication. The expected flow:
+    
+    1. Client authenticates with Firebase Auth (email/password or SSO)
+    2. Client receives ID token from Firebase
+    3. Client sends ID token to Next.js BFF for session creation
+    4. BFF creates session cookie and proxies requests to API with Bearer token
+    
+    Include the token in the `Authorization` header:
+    ```
+    Authorization: Bearer <firebase-id-token>
+    ```
+    
+    ## Authorization (Roles)
+    
+    Two roles are supported:
+    - **owner** (implicit): Users can manage their own posts
+    - **admin** (explicit): Admins can manage any post
+    
+    Role is determined by Firebase custom claims (`admin: true`).
+    
+    ## Rate Limiting
+    
+    Mutating endpoints (POST, PATCH, DELETE) are rate-limited to 10 requests per minute per user.
+    Exceeding the limit returns `429 Too Many Requests`.
+    
+    ## CSRF Protection
+    
+    Write operations require a valid CSRF token in the `X-CSRF-Token` header.
+    
+  version: 3.0.0
+  contact:
+    name: Training Project
+    url: https://github.com/Maximus-Technologies-Uganda/training-hamza
+  license:
+    name: ISC
+    url: https://opensource.org/licenses/ISC
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://blog-api-dev-xxxxxxxxxx-uc.a.run.app
+    description: Cloud Run development environment
+
+tags:
+  - name: auth
+    description: Authentication endpoints (BFF proxies to Firebase)
+  - name: health
+    description: Service health and readiness monitoring
+  - name: posts
+    description: Blog post CRUD operations
+
+# Global security - applied to all endpoints unless overridden
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Firebase ID token. Obtain via Firebase Auth SDK client-side,
+        then exchange for session via BFF. The BFF includes the token
+        in requests to this API.
+
+  schemas:
+    # Error responses
+    Error:
+      type: object
+      required:
+        - statusCode
+        - error
+        - message
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Validation failed
+        code:
+          type: string
+          description: Machine-readable error code
+          example: VALIDATION_ERROR
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            details:
+              type: array
+              description: Detailed validation errors
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    example: title
+                  message:
+                    type: string
+                    example: Title must be 200 characters or less
+
+    RateLimitError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            retryAfter:
+              type: integer
+              description: Seconds until rate limit resets
+              example: 42
+
+    # User schemas
+    User:
+      type: object
+      required:
+        - uid
+        - email
+      properties:
+        uid:
+          type: string
+          description: Firebase UID
+          example: firebase-uid-abc123
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        displayName:
+          type: string
+          example: Alice
+        role:
+          type: string
+          enum: [user, admin]
+          default: user
+          example: user
+
+    # Post schemas
+    Post:
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - body
+        - ownerId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          description: Unique post identifier
+          example: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Post title
+          example: Getting Started with Firebase Auth
+        slug:
+          type: string
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          description: URL-friendly slug
+          example: getting-started-with-firebase-auth
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: Post content
+          example: Firebase Authentication provides backend services...
+        ownerId:
+          type: string
+          description: Firebase UID of the post creator
+          example: firebase-uid-abc123
+        owner:
+          $ref: '#/components/schemas/User'
+          description: Populated owner details (optional, based on query param)
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601)
+          example: '2025-12-09T12:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last modification timestamp (ISO 8601)
+          example: '2025-12-09T12:00:00.000Z'
+
+    CreatePostRequest:
+      type: object
+      required:
+        - title
+        - body
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Post title (must contain non-whitespace)
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: Post content (must contain non-whitespace)
+
+    UpdatePostRequest:
+      type: object
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Updated post title
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: Updated post content
+
+    PostList:
+      type: object
+      required:
+        - posts
+        - total
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        total:
+          type: integer
+          description: Total number of posts
+          example: 42
+
+    # Health schemas
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+        - uptime
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+          example: ok
+        version:
+          type: string
+          description: API version
+          example: '3.0.0'
+        uptime:
+          type: integer
+          description: Uptime in seconds
+          example: 3600
+        timestamp:
+          type: string
+          format: date-time
+          example: '2025-12-09T12:00:00.000Z'
+
+    ReadinessResponse:
+      allOf:
+        - $ref: '#/components/schemas/HealthResponse'
+        - type: object
+          properties:
+            checks:
+              type: object
+              properties:
+                database:
+                  type: string
+                  enum: [ok, error]
+                  example: ok
+                firebase:
+                  type: string
+                  enum: [ok, error]
+                  example: ok
+
+    # Session schemas
+    SessionResponse:
+      type: object
+      required:
+        - authenticated
+      properties:
+        authenticated:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/User'
+
+  responses:
+    BadRequest:
+      description: Invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                statusCode: 401
+                error: Unauthorized
+                message: Authentication required
+                code: AUTH_REQUIRED
+            invalidToken:
+              summary: Invalid token
+              value:
+                statusCode: 401
+                error: Unauthorized
+                message: Invalid token
+                code: TOKEN_INVALID
+            expiredToken:
+              summary: Token expired
+              value:
+                statusCode: 401
+                error: Unauthorized
+                message: Token has expired
+                code: TOKEN_EXPIRED
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            notOwner:
+              summary: Not post owner
+              value:
+                statusCode: 403
+                error: Forbidden
+                message: You can only modify your own posts
+                code: NOT_OWNER
+            csrfInvalid:
+              summary: Invalid CSRF token
+              value:
+                statusCode: 403
+                error: Forbidden
+                message: Invalid CSRF token
+                code: CSRF_INVALID
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            statusCode: 404
+            error: Not Found
+            message: Post not found
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds until rate limit resets
+          schema:
+            type: integer
+        X-RateLimit-Limit:
+          description: Request limit per window
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Remaining requests in window
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          description: Unix timestamp when limit resets
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RateLimitError'
+          example:
+            statusCode: 429
+            error: Too Many Requests
+            message: Rate limit exceeded. Try again in 42 seconds
+            retryAfter: 42
+
+paths:
+  # Health endpoints
+  /health:
+    get:
+      tags:
+        - health
+      summary: Liveness check
+      description: Basic health check to verify the service is running
+      operationId: getHealth
+      security: []  # Public endpoint
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      tags:
+        - health
+      summary: Readiness check
+      description: |
+        Extended health check that verifies dependencies (database, Firebase).
+        Use for Kubernetes/Cloud Run readiness probes.
+      operationId: getReadiness
+      security: []  # Public endpoint
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: Service not ready (dependency failure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              example:
+                status: degraded
+                version: '3.0.0'
+                uptime: 3600
+                timestamp: '2025-12-09T12:00:00.000Z'
+                checks:
+                  database: ok
+                  firebase: error
+
+  # Auth endpoints (BFF session management)
+  /auth/session:
+    get:
+      tags:
+        - auth
+      summary: Get current session
+      description: Returns the current user's session information if authenticated
+      operationId: getSession
+      responses:
+        '200':
+          description: Session information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              examples:
+                authenticated:
+                  summary: Authenticated user
+                  value:
+                    authenticated: true
+                    user:
+                      uid: firebase-uid-abc123
+                      email: alice@example.com
+                      displayName: Alice
+                      role: user
+                unauthenticated:
+                  summary: Not authenticated
+                  value:
+                    authenticated: false
+
+  /auth/logout:
+    post:
+      tags:
+        - auth
+      summary: Sign out
+      description: Clears the session cookie and signs out the user
+      operationId: logout
+      responses:
+        '200':
+          description: Successfully signed out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+  # Posts endpoints
+  /posts:
+    get:
+      tags:
+        - posts
+      summary: List all posts
+      description: Returns a paginated list of all blog posts
+      operationId: listPosts
+      security: []  # Public endpoint
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of posts to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of posts to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: ownerId
+          in: query
+          description: Filter by owner's Firebase UID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostList'
+
+    post:
+      tags:
+        - posts
+      summary: Create a new post
+      description: |
+        Creates a new blog post. Requires authentication.
+        The authenticated user becomes the post owner.
+        
+        **Rate Limited**: 10 requests per minute per user
+        **CSRF Protected**: Include X-CSRF-Token header
+      operationId: createPost
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          description: CSRF token from cookie
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created successfully
+          headers:
+            Location:
+              description: URL of the created post
+              schema:
+                type: string
+                example: /posts/42
+            X-Request-Id:
+              description: Request correlation ID
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /posts/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Post ID
+        schema:
+          type: integer
+          minimum: 1
+
+    get:
+      tags:
+        - posts
+      summary: Get a post by ID
+      description: Returns a single blog post by its ID
+      operationId: getPost
+      security: []  # Public endpoint
+      responses:
+        '200':
+          description: Post details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - posts
+      summary: Update a post
+      description: |
+        Updates an existing blog post. Requires authentication.
+        Only the post owner or an admin can update the post.
+        
+        **Rate Limited**: 10 requests per minute per user
+        **CSRF Protected**: Include X-CSRF-Token header
+      operationId: updatePost
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          description: CSRF token from cookie
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          description: Post updated successfully
+          headers:
+            X-Request-Id:
+              description: Request correlation ID
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags:
+        - posts
+      summary: Delete a post
+      description: |
+        Deletes a blog post. Requires authentication.
+        Only the post owner or an admin can delete the post.
+        
+        **Rate Limited**: 10 requests per minute per user
+        **CSRF Protected**: Include X-CSRF-Token header
+      operationId: deletePost
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          description: CSRF token from cookie
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Post deleted successfully
+          headers:
+            X-Request-Id:
+              description: Request correlation ID
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /posts/slug/{slug}:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        description: Post slug
+        schema:
+          type: string
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+
+    get:
+      tags:
+        - posts
+      summary: Get a post by slug
+      description: Returns a single blog post by its URL slug
+      operationId: getPostBySlug
+      security: []  # Public endpoint
+      responses:
+        '200':
+          description: Post details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          $ref: '#/components/responses/NotFound'

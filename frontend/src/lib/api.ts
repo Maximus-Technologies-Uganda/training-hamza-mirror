@@ -4,120 +4,96 @@
  * 
  * Generated from: specs/002-blog-api/contracts/openapi.yaml
  * Feature: 003-frontend-blog-integration
+ * Updated: 004-blog-auth - Added Authorization headers for write operations
  */
 
 import type { Post, CreatePostInput, UpdatePostInput, HealthStatus } from './types';
+import { getAuthHeaders } from './auth';
+import { getIdToken } from './firebase';
+import { API_BASE_URL } from './config';
+import { ApiError, isApiError, type FieldValidationError } from './api-errors';
+
+// Re-export for backward compatibility
+export { API_BASE_URL };
+export { ApiError, isApiError, type FieldValidationError };
 
 /**
- * Get API base URL from environment variable
- * Falls back to localhost if not configured
+ * Generate a unique request ID for tracing
+ * Uses crypto.randomUUID() if available, falls back to timestamp-based ID
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-/**
- * Field-level validation error from API
- */
-export interface FieldValidationError {
-  field: string;
-  message: string;
+function generateRequestId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
- * Custom error class for API errors
- * Extends Error with HTTP status code and full error details from the API response
- * Matches the error contract: { statusCode, error, message, details, validation }
+ * Get CSRF token from cookie
+ * Used for CSRF protection on mutating requests
  */
-export class ApiError extends Error {
-  public readonly statusCode: number;
-  public readonly error: string;
-  public readonly details?: string;
-  public readonly validation?: FieldValidationError[];
-
-  constructor(
-    statusCode: number,
-    message: string,
-    error: string = 'Error',
-    details?: string,
-    validation?: FieldValidationError[]
-  ) {
-    super(message);
-    this.name = 'ApiError';
-    this.statusCode = statusCode;
-    this.error = error;
-    this.details = details;
-    this.validation = validation;
-    
-    // Maintains proper stack trace for where error was thrown (only in V8)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, ApiError);
-    }
+function getCSRFToken(): string | null {
+  if (typeof document === 'undefined') {
+    return null;
   }
-
-  /**
-   * Create ApiError from API response body
-   */
-  static fromResponse(body: {
-    statusCode?: number;
-    error?: string;
-    message?: string;
-    details?: string;
-    validation?: FieldValidationError[];
-  }, fallbackStatus: number = 500): ApiError {
-    return new ApiError(
-      body.statusCode || fallbackStatus,
-      body.message || 'An unexpected error occurred',
-      body.error || 'Error',
-      body.details,
-      body.validation
-    );
+  const cookies = document.cookie.split(';');
+  const csrfCookie = cookies.find(c => c.trim().startsWith('csrf_token='));
+  if (!csrfCookie) {
+    return null;
   }
-
-  /**
-   * Check if this error has field-level validation errors
-   */
-  hasFieldErrors(): boolean {
-    return Array.isArray(this.validation) && this.validation.length > 0;
-  }
-
-  /**
-   * Get validation error message for a specific field
-   */
-  getFieldError(fieldName: string): string | undefined {
-    return this.validation?.find(v => v.field === fieldName)?.message;
-  }
-
-  /**
-   * Check if this is a validation error (400)
-   */
-  isValidationError(): boolean {
-    return this.statusCode === 400;
-  }
-
-  /**
-   * Check if this is a not found error (404)
-   */
-  isNotFoundError(): boolean {
-    return this.statusCode === 404;
-  }
-
-  /**
-   * Check if this is a server error (5xx)
-   */
-  isServerError(): boolean {
-    return this.statusCode >= 500 && this.statusCode < 600;
-  }
+  const [, token] = csrfCookie.split('=');
+  return token ?? null;
 }
 
 /**
- * Type guard to check if error is ApiError
+ * Ensure CSRF token cookie is present by calling the backend bootstrap endpoint
+ * Caches in-flight requests to avoid duplicate /csrf-token calls.
  */
-export function isApiError(error: unknown): error is ApiError {
-  return error instanceof ApiError;
+let csrfBootstrapPromise: Promise<string | null> | null = null;
+async function ensureCSRFToken(): Promise<string | null> {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const existingToken = getCSRFToken();
+  if (existingToken) {
+    return existingToken;
+  }
+
+  if (!csrfBootstrapPromise) {
+    const requestId = generateRequestId();
+    csrfBootstrapPromise = (async () => {
+      const response = await fetch(`${API_BASE_URL}/csrf-token`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'X-Request-ID': requestId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch CSRF token (${response.status})`);
+      }
+
+      const body = await response.json().catch(() => ({}));
+      return body?.token || getCSRFToken();
+    })();
+  }
+
+  try {
+    return await csrfBootstrapPromise;
+  } catch (error) {
+    csrfBootstrapPromise = null; // Allow retry on next call
+    return null;
+  }
 }
 
 /**
  * Generic fetch wrapper with error handling
  * Throws ApiError on non-2xx responses
+ * Automatically adds X-Request-ID header for request tracing
+ * Adds CSRF token header for mutating requests (POST, PATCH, PUT, DELETE)
  * 
  * @param endpoint - API endpoint path (e.g., '/posts')
  * @param options - Fetch options (method, headers, body)
@@ -128,35 +104,62 @@ export async function fetchApi<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const requestId = generateRequestId();
+  
+  // Add CSRF token for mutating requests
+  const method = options?.method?.toUpperCase() || 'GET';
+  const isMutatingRequest = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
+  const csrfToken = isMutatingRequest ? await ensureCSRFToken() : null;
   
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         ...options?.headers,
       },
+      credentials: options?.credentials ?? 'include',
     });
 
-    // Handle non-JSON responses (e.g., 204 No Content)
-    if (response.status === 204) {
+    // Handle non-JSON responses (e.g., 204 No Content, or empty body)
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
       return undefined as T;
     }
 
-    const data = await response.json();
+    // Clone response to safely check for empty body
+    const text = await response.text();
+    if (!text) {
+      // For error responses with empty body, throw ApiError
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          response.statusText || 'Request failed',
+          'HttpError'
+        );
+      }
+      return undefined as T;
+    }
+
+    const data = JSON.parse(text);
 
     // Handle error responses - use fromResponse to capture full error structure
+    // Backend returns nested format: { error: { code, message, validation, requestId } }
     if (!response.ok) {
-      throw ApiError.fromResponse(
-        {
-          statusCode: data.statusCode || response.status,
-          error: data.error || response.statusText,
-          message: data.message || `HTTP ${response.status}: ${response.statusText}`,
-          details: data.details,
-          validation: data.validation,
-        },
-        response.status
-      );
+      const apiError = ApiError.fromResponse(data, response.status);
+      
+      // Enhance rate limit error messages with user-friendly guidance
+      if (apiError.isRateLimitError()) {
+        const retryAfter = apiError.getRetryAfter();
+        if (retryAfter !== null) {
+          apiError.message = `You've made too many requests. Please wait ${retryAfter} seconds before trying again.`;
+        } else {
+          apiError.message = 'You\'ve made too many requests. Please wait a moment before trying again.';
+        }
+      }
+      
+      throw apiError;
     }
 
     return data;
@@ -171,7 +174,7 @@ export async function fetchApi<T>(
       );
     }
     
-    // Re-throw ApiError as-is
+    // Re-throw ApiError as-is (including enhanced rate limit errors)
     if (error instanceof ApiError) {
       throw error;
     }
@@ -209,45 +212,72 @@ export async function getPost(id: number): Promise<Post> {
 
 /**
  * Create a new blog post
+ * Requires authentication - includes Authorization header with Firebase ID token
  * 
  * @param input - Post title and body
  * @returns Created post with auto-generated fields
- * @throws ApiError on validation failure (400)
+ * @throws ApiError on validation failure (400) or unauthorized (401)
  */
 export async function createPost(input: CreatePostInput): Promise<Post> {
+  const idToken = await getIdToken();
+  const headers: Record<string, string> = {};
+  
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  
   return fetchApi<Post>('/posts', {
     method: 'POST',
+    headers,
     body: JSON.stringify(input),
   });
 }
 
 /**
  * Update an existing blog post
+ * Requires authentication - includes Authorization header with Firebase ID token
  * 
  * @param id - Post ID
  * @param input - Fields to update (partial)
  * @returns Updated post
- * @throws ApiError on failure (404 if not found, 400 on validation error)
+ * @throws ApiError on failure (404 if not found, 400 on validation error, 401/403 on auth error)
  */
 export async function updatePost(
   id: number,
   input: UpdatePostInput
 ): Promise<Post> {
+  const idToken = await getIdToken();
+  const headers: Record<string, string> = {};
+  
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  
   return fetchApi<Post>(`/posts/${id}`, {
     method: 'PATCH',
+    headers,
     body: JSON.stringify(input),
   });
 }
 
 /**
  * Delete a blog post
+ * Requires authentication - includes Authorization header with Firebase ID token
  * 
  * @param id - Post ID
- * @throws ApiError on failure (404 if not found)
+ * @throws ApiError on failure (404 if not found, 401/403 on auth error)
  */
 export async function deletePost(id: number): Promise<void> {
+  const idToken = await getIdToken();
+  const headers: Record<string, string> = {};
+  
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  
   return fetchApi<void>(`/posts/${id}`, {
     method: 'DELETE',
+    headers,
   });
 }
 

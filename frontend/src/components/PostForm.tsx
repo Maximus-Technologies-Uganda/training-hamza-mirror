@@ -12,7 +12,9 @@ import { useRouter } from 'next/navigation';
 import { useSWRConfig } from 'swr';
 import type { Post, CreatePostInput, UpdatePostInput } from '@/lib/types';
 import { createPost, updatePost, isApiError, type FieldValidationError } from '@/lib/api';
+import { mapAuthError, isAuthenticationError, isAuthorizationError } from '@/lib/errors';
 import { titleValidation, bodyValidation } from '@/lib/validation';
+import AuthErrorMessage from './AuthErrorMessage';
 
 interface PostFormProps {
   /** Existing post data for edit mode */
@@ -31,6 +33,7 @@ export default function PostForm({ post, isEditMode = false }: PostFormProps) {
   const { mutate: globalMutate } = useSWRConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [authErrorStatus, setAuthErrorStatus] = useState<number | null>(null);
   const [apiFieldErrors, setApiFieldErrors] = useState<FieldValidationError[]>([]);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const submitButtonRef = useRef<HTMLButtonElement>(null);
@@ -56,6 +59,7 @@ export default function PostForm({ post, isEditMode = false }: PostFormProps) {
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     setApiError(null);
+    setAuthErrorStatus(null);
     setApiFieldErrors([]);
     setStatusMessage(isEditMode ? 'Updating post...' : 'Creating post...');
 
@@ -90,11 +94,17 @@ export default function PostForm({ post, isEditMode = false }: PostFormProps) {
       router.push(`/posts/${result.id}`);
     } catch (error) {
       if (isApiError(error)) {
-        // Capture field-level validation errors if available
-        if (error.hasFieldErrors() && error.validation) {
-          setApiFieldErrors(error.validation);
+        // Check for 401/403 auth errors and use friendly messages (US7)
+        if (isAuthenticationError(error.statusCode) || isAuthorizationError(error.statusCode)) {
+          setAuthErrorStatus(error.statusCode);
+          setApiError(null);
+        } else {
+          // Capture field-level validation errors if available
+          if (error.hasFieldErrors() && error.validation) {
+            setApiFieldErrors(error.validation);
+          }
+          setApiError(error.message);
         }
-        setApiError(error.message);
       } else if (error instanceof Error) {
         setApiError(error.message);
       } else {
@@ -171,7 +181,13 @@ export default function PostForm({ post, isEditMode = false }: PostFormProps) {
       )}
 
       {/* API Error Display */}
-      {apiError && (
+      {authErrorStatus && (
+        <AuthErrorMessage 
+          status={authErrorStatus} 
+          context={isEditMode ? 'edit' : 'create'}
+        />
+      )}
+      {apiError && !authErrorStatus && (
         <div
           role="alert"
           className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start"

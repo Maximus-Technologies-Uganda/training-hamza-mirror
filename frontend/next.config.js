@@ -1,16 +1,36 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  basePath: process.env.NODE_ENV === 'production' ? '/training-hamza' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/training-hamza/' : '',
+  // Note: 'output: export' was removed because this app uses API routes (BFF pattern)
+  // which require a Node.js server runtime. Static export is incompatible with:
+  // - /api/posts/*, /api/auth/* route handlers
+  // - Dynamic routes without generateStaticParams
+  
   images: {
-    unoptimized: true
+    // Allow images from API domain
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
   },
-  trailingSlash: true,
-  // Skip static generation for dynamic routes - they'll be handled client-side
-  // via the 404.html SPA fallback
-  skipMiddlewareUrlNormalize: true,
-  skipTrailingSlashRedirect: true,
+  
+  // Environment variables for server-side fetching
+  env: {
+    // Server-side API URL (not exposed to browser)
+    API_BASE_URL: process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+  },
+  
+  // Logging for debugging SSR issues
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
 };
 
 module.exports = nextConfig;
